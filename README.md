@@ -1,2 +1,6 @@
-# grafana-cuke-results
-Cuke results in grafana
+to start the server
+
+```
+npm install
+node index.js
+```
