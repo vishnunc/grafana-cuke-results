@@ -1,0 +1,147 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 3,
+  "iteration": 1562080264903,
+  "links": [],
+  "panels": [
+    {
+      "cacheTimeout": null,
+      "columns": [],
+      "datasource": "Automation Results",
+      "fontSize": "100%",
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "links": [],
+      "options": {},
+      "pageSize": null,
+      "pluginVersion": "6.2.0",
+      "scroll": true,
+      "showHeader": true,
+      "sort": {
+        "col": null,
+        "desc": false
+      },
+      "styles": [
+        {
+          "alias": "",
+          "colorMode": "row",
+          "colors": [
+            "#AD0317",
+            "#C4162A",
+            "#37872D"
+          ],
+          "dateFormat": "YYYY-MM-DD HH:mm:ss",
+          "decimals": 0,
+          "link": true,
+          "linkTooltip": "Scenario Details",
+          "linkUrl": "\" onclick=\"args = window.location.href.match(/(from|to|refresh|var-runID)=[^&]+/g); window.location = '/d/sv8TI3nWk/scenario-summary?orgId=1&var-Feature=Feature%7C%3D%7C${__cell_0}&' + (args != null ? args.join('&') : '') ",
+          "mappingType": 1,
+          "pattern": "Status",
+          "thresholds": [
+            "0",
+            "1"
+          ],
+          "type": "string",
+          "unit": "none",
+          "valueMaps": [
+            {
+              "text": "Pass",
+              "value": "1"
+            },
+            {
+              "text": "Fail",
+              "value": "0"
+            }
+          ]
+        }
+      ],
+      "targets": [
+        {
+          "refId": "A",
+          "target": "FeaturesRun",
+          "type": "table"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Feature Summary",
+      "transform": "table",
+      "type": "table"
+    }
+  ],
+  "schemaVersion": 18,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "datasource": "Automation Results",
+        "filters": [
+          {
+            "key": "RunID",
+            "operator": "=",
+            "value": "5d1b7270a8eff501eb189736"
+          }
+        ],
+        "hide": 0,
+        "label": "RunID",
+        "name": "runID",
+        "skipUrlSync": false,
+        "type": "adhoc"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
+  "timezone": "",
+  "title": "Feature Summary",
+  "uid": "cij-T9nZz",
+  "version": 5
+}

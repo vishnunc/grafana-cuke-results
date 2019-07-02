@@ -4,9 +4,9 @@ var _ = require('lodash');
 var mongo = require('mongodb');
 var ObjectID = require('bson-objectid');
 var MongoClient = require('mongodb').MongoClient;
-/*var url = "mongodb://localhost:27017/cuke";
-var db="cuke";
-var collection="debug";*/
+//var url = "mongodb://localhost:27017/cuke";
+//var db="cuke";
+//var collection="debug";
 var url = "mongodb://10.1.70.74:27017/Automation_Results";
 var collection="Regression_Results";
 var app = express();
@@ -253,7 +253,7 @@ function getRunData(body,target){
             //var fail_datapoints = [];
             var run_datapoints = [];
             data.forEach(function(record){
-                
+                var duration = 0;
                 var passCount = 0;
                 var failCount = 0;
                 record.result.forEach(function(feature){
@@ -261,6 +261,7 @@ function getRunData(body,target){
                     var feature_status = "passed"
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
+                            duration = duration + step.result.duration;
                             if(step.result.status != "passed"){
                                 feature_status = "failed";
                             }
@@ -274,7 +275,10 @@ function getRunData(body,target){
                 });
                 //pass_datapoints.push([passCount,Math.floor(new Date(record._id.getTimestamp()) )]);
                 //fail_datapoints.push([failCount,Math.floor(new Date(record._id.getTimestamp()) )]);
-                run_datapoints.push([record._id,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()) )])
+                console.log(record._id.getTimestamp());
+                console.log(duration/1000000);
+                
+                run_datapoints.push([record._id,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) )])
             });
            // pass['datapoints'] = pass_datapoints;
             //fail['datapoints'] = fail_datapoints;
@@ -288,7 +292,7 @@ function getRunData(body,target){
             // return featuresData;
           var table =
         {
-          columns: [{text: 'Run ID', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time', type: 'number'}],
+          columns: [{text: 'Run ID', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'}],
           rows: run_datapoints,
           "type":"table"
         };
