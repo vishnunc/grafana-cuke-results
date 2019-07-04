@@ -4,11 +4,11 @@ var _ = require('lodash');
 var mongo = require('mongodb');
 var ObjectID = require('bson-objectid');
 var MongoClient = require('mongodb').MongoClient;
-//var url = "mongodb://localhost:27017/cuke";
-//var db="cuke";
-//var collection="debug";
-var url = "mongodb://10.1.70.74:27017/Automation_Results";
-var collection="Regression_Results";
+var url = "mongodb://localhost:27017/cuke";
+var db="cuke";
+var collection="debug";
+//var url = "mongodb://10.1.70.74:27017/Automation_Results";
+//var collection="Regression_Results";
 var app = express();
 
 app.use(bodyParser.json());
@@ -29,33 +29,21 @@ var annotations = [
 ];
 
 var tagKeys = [
+  {"type":"string","text":"Country"},
+  {"type":"string","text":"Country"},
   {"type":"string","text":"Country"}
 ];
 
 var countryTagValues = [
   {'text': 'SE'},
   {'text': 'DE'},
+  {'text': 'US'},
   {'text': 'US'}
 ];
 
-var now = Date.now();
-var decreaser = 0;
-for (var i = 0;i < annotations.length; i++) {
-  var anon = annotations[i];
 
-  anon.time = (now - decreaser);
-  decreaser += 1000000
-}
 
-var table =
-  {
-    columns: [{text: 'Time', type: 'time'}, {text: 'Country', type: 'string'}, {text: 'Number', type: 'number'}],
-    values: [
-      [ 1234567, 'SE', 123 ],
-      [ 1234567, 'DE', 231 ],
-      [ 1234567, 'US', 321 ],
-    ]
-  };
+
   
 function setCORSHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -64,14 +52,6 @@ function setCORSHeaders(res) {
 }
 
 
-var now = Date.now();
-var decreaser = 0;
-for (var i = 0;i < table.values.length; i++) {
-  var anon = table.values[i];
-
-  anon[0] = (now - decreaser);
-  decreaser += 1000000
-}
 
 app.all('/', function(req, res) {
   setCORSHeaders(res);
@@ -175,13 +155,43 @@ async function getData(body,target){
 function getFeaturesData(body,target){
     return new Promise(function(resolve,reject){
     var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500;
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
+        }
+        else if(filter.key=="Count"){
+            limit=parseInt(filter.value)+1;
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+     
      MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
         var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
         var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
-        
-        dbo.collection(collection).find({_id:{"$lt":toTime,"$gt":fromTime}}).toArray(function(err, data){
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             if (err) throw err;
             // result = data;
             var c = 0;
@@ -195,6 +205,18 @@ function getFeaturesData(body,target){
                 var failCount = 0;
                 record.result.forEach(function(feature){
                     // console.log(feature, c)
+                    var filterFail=false;
+                    feature.tags.forEach(function(tag){
+                      tags.forEach(function(fil){
+                        if(!eval(fil)){
+                        filterFail=true;
+                      }
+                      }) 
+                      
+                    })
+                    if(filterFail){
+                      return;
+                    }
                     var feature_status = "passed"
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
@@ -237,13 +259,43 @@ function getFeaturesData(body,target){
 function getRunData(body,target){
     return new Promise(function(resolve,reject){
     var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
+        }
+        else if(filter.key=="Count"){
+            limit=parseInt(filter.value)+1;
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+     
      MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
         var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
         var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
-        
-        dbo.collection(collection).find({_id:{"$lt":toTime,"$gt":fromTime}}).toArray(function(err, data){
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             if (err) throw err;
             // result = data;
             var c = 0;
@@ -256,8 +308,24 @@ function getRunData(body,target){
                 var duration = 0;
                 var passCount = 0;
                 var failCount = 0;
+                var filterFail=false;
                 record.result.forEach(function(feature){
                     // console.log(feature, c)
+                    filterFail=false;
+                    console.log(filterFail);
+                    feature.tags.forEach(function(tag){
+                      tags.forEach(function(fil){
+                        if(!eval(fil)){
+                        filterFail=true;
+                        console.log('here')
+                      }
+                      }) 
+                      
+                    })
+                    
+                    if(filterFail){
+                      return;
+                    }
                     var feature_status = "passed"
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
@@ -273,10 +341,10 @@ function getRunData(body,target){
                         passCount += 1;
                     } 
                 });
-                //pass_datapoints.push([passCount,Math.floor(new Date(record._id.getTimestamp()) )]);
-                //fail_datapoints.push([failCount,Math.floor(new Date(record._id.getTimestamp()) )]);
-                console.log(record._id.getTimestamp());
-                console.log(duration/1000000);
+                  
+                 if(filterFail){
+                      return;
+                  }
                 
                 run_datapoints.push([record._id,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) )])
             });
@@ -292,7 +360,7 @@ function getRunData(body,target){
             // return featuresData;
           var table =
         {
-          columns: [{text: 'Run ID', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'}],
+          columns: [{text: 'Run ID', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'},{text: 'Environment', type: 'string'}],
           rows: run_datapoints,
           "type":"table"
         };
@@ -315,8 +383,7 @@ function getFeaturesRunTable(body,target){
     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
-        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
-        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        
         //.limit(1).sort({$natural:-1})
         dbo.collection(collection).find({_id:ObjectID(id)}).toArray(function(err, data){
             // console.log(data);
@@ -619,22 +686,133 @@ app.all('/tag[\-]keys', function(req, res) {
   setCORSHeaders(res);
   console.log(req.url);
   console.log(req.body);
+  let tsResult = [];
+  tsResult.push(getFilterTags());
+  Promise.all(tsResult).
+  then((result)=>{
+    result[0].columns.push({"type":"string","text":"Tags"});
 
-  res.json(tagKeys);
-  res.end();
+    res.json(_.uniqBy(result[0].columns,'text'));
+    res.end();
+  });
+  
 });
 
+function getFilterTags(){
+
+    // format
+    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
+    // ["efg feature name","Fail",30]]}
+    return new Promise(function(resolve, reject){
+    
+    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        
+        //.limit(1).sort({$natural:-1})
+        dbo.collection(collection).find({}).toArray(function(err, data){
+            // console.log(data);
+            
+            var colpoints =[];
+            var datapoints = [];
+            data.forEach(function(record){
+                 
+                if(record.metadata!=null){
+                Object.keys(record.metadata).forEach(function(key){
+
+                    colpoints.push({text:key,type:'string'});
+                    datapoints.push({text:record.metadata[key]});
+
+                });
+             
+             } 
+             record.result.forEach(function(feature){
+                  feature.tags.forEach(function(tag){
+                    colpoints.push({text:"Tags",type:'string'})
+                    colpoints.push({text:"Count",type:'string'})
+                    datapoints.push(tag.name);
+                  })
+             })  
+            
+            });
+            
+            var table =
+        {
+          columns: colpoints,
+          rows: datapoints,
+          "type":"table"
+        };
+        console.log(table);
+            resolve(table);
+        });
+    });
+    });
+}
+
+function getFilterValues(filterkey){
+
+    // format
+    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
+    // ["efg feature name","Fail",30]]}
+    return new Promise(function(resolve, reject){
+    
+    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        
+        //.limit(1).sort({$natural:-1})
+        dbo.collection(collection).find({}).toArray(function(err, data){
+            // console.log(data);
+            
+            var colpoints =[];
+            var datapoints = [];
+            data.forEach(function(record){
+                 
+                if(record.metadata!=null){
+                Object.keys(record.metadata).forEach(function(key){
+                    console.log(key)
+                    console.log(filterkey)
+                    if(key==filterkey){
+                      datapoints.push({text:(record.metadata[key]==true?'true':(record.metadata[key]==false?'false':record.metadata[key]))});
+                    }
+                    
+
+                });
+             
+             } 
+             if(filterkey=="Tags"){
+             record.result.forEach(function(feature){
+                  feature.tags.forEach(function(tag){
+                    
+                    datapoints.push({text:tag.name});
+                  })
+             })  
+            }
+            });
+            
+            var table =
+        {
+          //columns: colpoints,
+          values: datapoints,
+          
+        };
+        console.log(table);
+            resolve(table);
+        });
+    });
+    });
+}
 app.all('/tag[\-]values', function(req, res) {
   setCORSHeaders(res);
   console.log(req.url);
   console.log(req.body);
-
-  if (req.body.key == 'City') {
-    res.json(cityTagValues);
-  } else if (req.body.key == 'Country') {
-    res.json(countryTagValues);
-  }
-  res.end();
+  let tsResult = [];
+  tsResult.push(getFilterValues(req.body.key));
+  Promise.all(tsResult).
+  then((result)=>{
+    res.json(_.uniqBy(result[0].values,'text'));
+    res.end();
+  });
 });
 
 app.listen(3333);
