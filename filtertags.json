@@ -1,0 +1,13 @@
+[
+{"type":"string","text":"Browser"},
+{"type":"string","text":"browserVersion"},
+{"type":"string","text":"browserPlatform"},
+{"type":"string","text":"locale"},
+{"type":"string","text":"Tags"},
+{"type":"string","text":"Count"},
+{"type":"string","text":"driverType"},
+{"type":"string","text":"isMobile"},
+{"type":"string","text":"mobileDeviceName"},
+{"type":"string","text":"mobileBrowser"},
+{"type":"string","text":"mobilePlatformVersion"}
+]

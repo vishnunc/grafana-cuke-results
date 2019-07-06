@@ -4,12 +4,25 @@ var _ = require('lodash');
 var mongo = require('mongodb');
 var ObjectID = require('bson-objectid');
 var MongoClient = require('mongodb').MongoClient;
-var url = "mongodb://localhost:27017/cuke";
-var db="cuke";
-var collection="debug";
-//var url = "mongodb://10.1.70.74:27017/Automation_Results";
-//var collection="Regression_Results";
+var filtertags=require('./filtertags');
+//var url = "mongodb://localhost:27017/cuke";
+//var db="cuke";
+//var collection="debug";
+
+var url = "mongodb://10.1.70.74:27017/Automation_Results";
+var collection="Regression_Results";
 var app = express();
+
+var fs = require('fs'),
+    xml2js = require('xml2js');
+ 
+var parser = new xml2js.Parser();
+fs.readFile('/Users/vishnu/Downloads/EBS-BD_GetOrderInfo/EBS-BD-GetOrderInfo-readyapi-project.xml', function(err, data) {
+    parser.parseString(data, function (err, result) {
+        console.dir(result['con:soapui-project']['con:testSuite'][0]);
+        console.log('Done');
+    });
+});
 
 app.use(bodyParser.json());
 
@@ -61,9 +74,24 @@ app.all('/', function(req, res) {
 
 app.all('/search', function(req, res){
   setCORSHeaders(res);
-  var result = ["PassHistory","FailHistory","Runs","FeaturesRun","ScenariosRun","StepsRun","StepDetails","MetaData"];
-  res.json(result);
-  res.end();
+  console.log(req.body)
+  if(req.body.target==''){
+    var result = ["PassHistory","FailHistory","Runs","FeaturesRun","ScenariosRun","StepsRun","StepDetails","MetaData","TestData"];
+    res.json(result);
+    res.end();
+  }
+  else{
+    let tsResult = [];
+    tsResult.push(getFilterValues(req.body.target));
+    Promise.all(tsResult).
+    then((result)=>{
+      console.log(result)
+      res.json(_.uniqBy(result[0].values,'text'));
+      res.end();
+      });
+  }
+  
+  
 });
 
 app.all('/annotations', function(req, res) {
@@ -142,6 +170,9 @@ async function getData(body,target){
     case "MetaData":
       return getMetaData(body,target);
       break;
+    case "TestData":
+      return getTestData(body,target);
+      break;
     case "Tags":
       return getTags(body,target);
       break;
@@ -161,11 +192,19 @@ function getFeaturesData(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
-          
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.tags.name`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
         }
         else if(filter.key=="Count"){
-            limit=parseInt(filter.value)+1;
+
+            limit=parseInt(filter.value);
+            console.log(limit)
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -205,7 +244,7 @@ function getFeaturesData(body,target){
                 var failCount = 0;
                 record.result.forEach(function(feature){
                     // console.log(feature, c)
-                    var filterFail=false;
+                    /*var filterFail=false;
                     feature.tags.forEach(function(tag){
                       tags.forEach(function(fil){
                         if(!eval(fil)){
@@ -216,7 +255,7 @@ function getFeaturesData(body,target){
                     })
                     if(filterFail){
                       return;
-                    }
+                    }*/
                     var feature_status = "passed"
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
@@ -265,11 +304,18 @@ function getRunData(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
-          
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.tags.name`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
         }
         else if(filter.key=="Count"){
             limit=parseInt(filter.value)+1;
+            console.log(limit)
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -311,7 +357,7 @@ function getRunData(body,target){
                 var filterFail=false;
                 record.result.forEach(function(feature){
                     // console.log(feature, c)
-                    filterFail=false;
+                    /*filterFail=false;
                     console.log(filterFail);
                     feature.tags.forEach(function(tag){
                       tags.forEach(function(fil){
@@ -325,7 +371,7 @@ function getRunData(body,target){
                     
                     if(filterFail){
                       return;
-                    }
+                    }*/
                     var feature_status = "passed"
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
@@ -345,8 +391,15 @@ function getRunData(body,target){
                  if(filterFail){
                       return;
                   }
-                
-                run_datapoints.push([record._id,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) )])
+                environment=[]
+                if(record.metadata!=null){
+                Object.keys(record.metadata).forEach(function(key){
+
+                    environment.push(key+' : '+record.metadata[key])
+
+                });
+                }
+                run_datapoints.push([record._id,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),environment.join(' ; ')])
             });
            // pass['datapoints'] = pass_datapoints;
             //fail['datapoints'] = fail_datapoints;
@@ -461,6 +514,97 @@ function getMetaData(body,target){
                 });
              }   
             
+            });
+            
+            var table =
+        {
+          columns: colpoints,
+          rows: [datapoints],
+          "type":"table"
+        };
+        console.log(table);
+            resolve(table);
+        });
+    });
+    });
+}
+function getTestData(body,target){
+
+    // format
+    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
+    // ["efg feature name","Fail",30]]}
+    return new Promise(function(resolve, reject){
+    id=body.adhocFilters[0].value
+    sceneName=body.adhocFilters[1].value   
+    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        
+        //.limit(1).sort({$natural:-1})
+        dbo.collection(collection).find({_id:ObjectID(id)}).toArray(function(err, data){
+            // console.log(data);
+            var mostRecentRecord = {"target": "TestData"};
+            var colpoints =[];
+            var datapoints = [];
+            featureNum=-1
+            featureFound=false
+            data.forEach(function(record){
+                console.log('1')
+                record.result.forEach(function(feature){
+                  feature.elements.forEach(function(scenario){
+                    console.log('2')
+                    featureNum=featureNum+1;
+                    if(scenario.id==sceneName){
+                      featureFound=true;
+                      console.log('3')
+                      return;
+                    }
+                  })
+                  if(featureFound){
+                    return;
+                  }
+                });
+                if(record.testData!=null){
+
+                Object.keys(record.testData[featureNum]).forEach(function(key){
+
+                    colpoints.push({text:key,type:'string'});
+                    datapoints.push(record.testData[featureNum][key]);
+
+                });
+             }   
+            if(record.generatedData!=null){
+                 Object.keys(record.generatedData[featureNum]).forEach(function(key){
+
+                    colpoints.push({text:key,type:'string'});
+                    datapoints.push(record.generatedData[featureNum][key]);
+
+                });
+             }  
+             if(record.apiData!=null){
+                Object.keys(record.apiData[featureNum]).forEach(function(key){
+
+                    colpoints.push({text:key,type:'string'});
+                    datapoints.push(record.apiData[featureNum][key]);
+
+                });
+             }  
+             if(record.dataBaseInput!=null){
+                Object.keys(record.dataBaseOutput[featureNum]).forEach(function(key){
+
+                    colpoints.push({text:key,type:'string'});
+                    datapoints.push(record.dataBaseOutput[featureNum][key]);
+
+                });
+             }   
+             if(record.dataBaseOutput!=null){
+                Object.keys(record.dataBaseOutput[featureNum]).forEach(function(key){
+
+                    colpoints.push({text:key,type:'string'});
+                    datapoints.push(record.dataBaseOutput[featureNum][key]);
+
+                });
+             }     
             });
             
             var table =
@@ -684,18 +828,19 @@ function getStepDetailsTable(body,target){
 }
 app.all('/tag[\-]keys', function(req, res) {
   setCORSHeaders(res);
-  console.log(req.url);
-  console.log(req.body);
-  let tsResult = [];
+  
+  /*let tsResult = [];
   tsResult.push(getFilterTags());
   Promise.all(tsResult).
   then((result)=>{
-    result[0].columns.push({"type":"string","text":"Tags"});
+    //console.log(result)
 
     res.json(_.uniqBy(result[0].columns,'text'));
     res.end();
-  });
-  
+  });*/
+
+  res.json(filtertags);
+  res.end();
 });
 
 function getFilterTags(){
@@ -710,7 +855,7 @@ function getFilterTags(){
         var dbo = db.db();
         
         //.limit(1).sort({$natural:-1})
-        dbo.collection(collection).find({}).toArray(function(err, data){
+        dbo.collection(collection).find({}).sort({$natural:-1}).limit(100).toArray(function(err, data){
             // console.log(data);
             
             var colpoints =[];
@@ -742,7 +887,7 @@ function getFilterTags(){
           rows: datapoints,
           "type":"table"
         };
-        console.log(table);
+        //console.log(table);
             resolve(table);
         });
     });
@@ -761,7 +906,7 @@ function getFilterValues(filterkey){
         var dbo = db.db();
         
         //.limit(1).sort({$natural:-1})
-        dbo.collection(collection).find({}).toArray(function(err, data){
+        dbo.collection(collection).find({}).sort({$natural:-1}).limit(100).toArray(function(err, data){
             // console.log(data);
             
             var colpoints =[];
@@ -770,8 +915,8 @@ function getFilterValues(filterkey){
                  
                 if(record.metadata!=null){
                 Object.keys(record.metadata).forEach(function(key){
-                    console.log(key)
-                    console.log(filterkey)
+                    //console.log(key)
+                    //console.log(filterkey)
                     if(key==filterkey){
                       datapoints.push({text:(record.metadata[key]==true?'true':(record.metadata[key]==false?'false':record.metadata[key]))});
                     }
@@ -796,7 +941,7 @@ function getFilterValues(filterkey){
           values: datapoints,
           
         };
-        console.log(table);
+        //console.log(table);
             resolve(table);
         });
     });
@@ -804,8 +949,6 @@ function getFilterValues(filterkey){
 }
 app.all('/tag[\-]values', function(req, res) {
   setCORSHeaders(res);
-  console.log(req.url);
-  console.log(req.body);
   let tsResult = [];
   tsResult.push(getFilterValues(req.body.key));
   Promise.all(tsResult).
