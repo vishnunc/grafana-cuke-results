@@ -5,24 +5,24 @@ var mongo = require('mongodb');
 var ObjectID = require('bson-objectid');
 var MongoClient = require('mongodb').MongoClient;
 var filtertags=require('./filtertags');
-var url = "mongodb://localhost:27017/cuke";
-var db="cuke";
-var collection="debug";
+//var url = "mongodb://localhost:27017/cuke";
+//var db="cuke";
+//var collection="debug";
 
-//var url = "mongodb://10.1.70.74:27017/Automation_Results";
-//var collection="Regression_Results";
+var url = "mongodb://10.1.70.74:27017/Automation_Results";
+var collection="Regression_Results";
 var app = express();
 
 var fs = require('fs'),
     xml2js = require('xml2js');
  
-var parser = new xml2js.Parser();
+/*var parser = new xml2js.Parser();
 fs.readFile('/Users/vishnu/Downloads/EBS-BD_GetOrderInfo/EBS-BD-GetOrderInfo-readyapi-project.xml', function(err, data) {
     parser.parseString(data, function (err, result) {
         console.dir(result['con:soapui-project']['con:testSuite'][0]);
         console.log('Done');
     });
-});
+});*/
 
 app.use(bodyParser.json());
 
@@ -76,7 +76,7 @@ app.all('/search', function(req, res){
   setCORSHeaders(res);
   console.log(req.body)
   if(req.body.target==''){
-    var result = ["PassHistory","FailHistory","Summary","Runs","FeaturesRun","ScenariosRun","StepsRun","StepDetails","MetaData","TestData"];
+    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","ScenariosRun","StepsRun","StepDetails","MetaData","TestData"];
     res.json(result);
     res.end();
   }
@@ -155,7 +155,10 @@ async function getData(body,target){
 		case "FailHistory":
 			return getFeaturesData(body,target);
 			break;
-    case "Summary":
+    case "RunPassHistory":
+      return getSummary(body,target);
+      break;
+    case "RunFailHistory":
       return getSummary(body,target);
       break;
 		case "FeaturesRun":
@@ -434,7 +437,7 @@ function getSummary(body,target){
     var featuresData = [];
     var filters=[];
     var tags=[];
-    var limit=500
+    var limit=500;
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
@@ -448,7 +451,8 @@ function getSummary(body,target){
           filters.push(obj);
         }
         else if(filter.key=="Count"){
-            limit=parseInt(filter.value)+1;
+
+            limit=parseInt(filter.value);
             console.log(limit)
         }
         else{
@@ -477,46 +481,60 @@ function getSummary(body,target){
         }
         dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             if (err) throw err;
-            var mostRecentRecord = {"target": "Summary"};
-            var datapoints = [];
+            // result = data;
+            var c = 0;
+            var pass = {"target": "RunPassHistory"};
+            var fail = {"target": "RunFailHistory"};
+            var pass_datapoints = [];
+            var fail_datapoints = [];
+            
             data.forEach(function(record){
                 
+                var passCount = 0;
+                var failCount = 0;
                 record.result.forEach(function(feature){
-                    var featureData = []
-                    var duration = 0;
-                    var feature_status = "passed";
-                    featureData.push(feature.uri);
+                    
+                    var feature_status = "passed"
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
-                            duration = duration + step.result.duration/1000000000.0;
                             if(step.result.status != "passed"){
-                                feature_status = "failed"
-                            }else{
-                                feature_status = "passed"
+                                feature_status = "failed";
                             }
                         });
                     });
-                    if(feature_status == "passed"){
-                        featureData.push(1);
+                    if(feature_status != "passed"){
+                        failCount += 1;
                     }else{
-                        featureData.push(0);
-                    }
-                    featureData.push(duration);
-               
-                    datapoints.push(featureData);
+                        passCount += 1;
+                    } 
                 });
+                if(failCount>1){
+                  failCount=1
+                  passCount=0
+                }
+                else{
+                  passCount=1
+                  failCount=0
+                }
+                pass_datapoints.push([passCount,Math.floor(new Date(record._id.getTimestamp()) )]);
+                fail_datapoints.push([failCount,Math.floor(new Date(record._id.getTimestamp()) )]);
                 
             });
-            mostRecentRecord['datapoints'] = datapoints;
-          var table =
-        {
-          columns: [{text: 'Feature Name', type: 'string'}, {text: 'Chrome 75', type: 'number'}, {text: 'Chrome 74', type: 'number'},{text: 'Safari 12', type: 'number'},{text: 'Safari 11', type: 'string'},{text: 'Firefox 75', type: 'string'},{text: 'Firefox 74', type: 'string'},{text: 'IE 12', type: 'string'},{text: 'IE 11', type: 'string'},{text: 'Edge', type: 'string'},{text: 'iOS 12', type: 'string'},{text: 'Android', type: 'string'}],
-          rows: [["Abc","Pass","Fail","Pass","Fail","Pass","Fail","Pass","Fail","Pass","Fail","Pass",]],
-          "type":"table"
-        };
-        console.log(table);
-            resolve(table);
-          //resolve(featuresData);
+            pass['datapoints'] = pass_datapoints;
+            fail['datapoints'] = fail_datapoints;
+            // pass['datapoints'] = [];
+            // fail['datapoints'] = [];
+            // console.log("records count: "+c);
+            featuresData.push(pass);
+            featuresData.push(fail);
+            
+            // return featuresData;
+            if(target=="RunPassHistory"){
+          resolve(featuresData[0]);
+         }
+         else{
+          resolve(featuresData[1]);
+         }
         });
     });
   });
