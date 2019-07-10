@@ -5,12 +5,12 @@ var mongo = require('mongodb');
 var ObjectID = require('bson-objectid');
 var MongoClient = require('mongodb').MongoClient;
 var filtertags=require('./filtertags');
-//var url = "mongodb://localhost:27017/cuke";
-//var db="cuke";
-//var collection="debug";
+var url = "mongodb://localhost:27017/cuke";
+var db="cuke";
+var collection="debug";
 
-var url = "mongodb://10.1.70.74:27017/Automation_Results";
-var collection="Regression_Results";
+//var url = "mongodb://10.1.70.74:27017/Automation_Results";
+//var collection="Regression_Results";
 var app = express();
 
 var fs = require('fs'),
@@ -76,7 +76,7 @@ app.all('/search', function(req, res){
   setCORSHeaders(res);
   console.log(req.body)
   if(req.body.target==''){
-    var result = ["PassHistory","FailHistory","Runs","FeaturesRun","ScenariosRun","StepsRun","StepDetails","MetaData","TestData"];
+    var result = ["PassHistory","FailHistory","Summary","Runs","FeaturesRun","ScenariosRun","StepsRun","StepDetails","MetaData","TestData"];
     res.json(result);
     res.end();
   }
@@ -155,6 +155,9 @@ async function getData(body,target){
 		case "FailHistory":
 			return getFeaturesData(body,target);
 			break;
+    case "Summary":
+      return getSummary(body,target);
+      break;
 		case "FeaturesRun":
 			return getFeaturesRunTable(body,target);
 			break;
@@ -415,6 +418,100 @@ function getRunData(body,target){
         {
           columns: [{text: 'Run ID', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'},{text: 'Environment', type: 'string'}],
           rows: run_datapoints,
+          "type":"table"
+        };
+        console.log(table);
+            resolve(table);
+          //resolve(featuresData);
+        });
+    });
+  });
+    
+}
+
+function getSummary(body,target){
+    return new Promise(function(resolve,reject){
+    var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.tags.name`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Count"){
+            limit=parseInt(filter.value)+1;
+            console.log(limit)
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+     
+     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
+            if (err) throw err;
+            var mostRecentRecord = {"target": "FeatureRun"};
+            var datapoints = [];
+            data.forEach(function(record){
+                
+                record.result.forEach(function(feature){
+                    var featureData = []
+                    var duration = 0;
+                    var feature_status = "passed";
+                    featureData.push(feature.uri);
+                    feature.elements.forEach(function(element){
+                        element.steps.forEach(function(step){
+                            duration = duration + step.result.duration/1000000000.0;
+                            if(step.result.status != "passed"){
+                                feature_status = "failed"
+                            }else{
+                                feature_status = "passed"
+                            }
+                        });
+                    });
+                    if(feature_status == "passed"){
+                        featureData.push(1);
+                    }else{
+                        featureData.push(0);
+                    }
+                    featureData.push(duration);
+               
+                    datapoints.push(featureData);
+                });
+                
+            });
+            mostRecentRecord['datapoints'] = datapoints;
+          var table =
+        {
+          columns: [{text: 'Feature Name', type: 'string'}, {text: 'Chrome 75', type: 'number'}, {text: 'Chrome 74', type: 'number'},{text: 'Safari 12', type: 'number'},{text: 'Safari 11', type: 'string'},{text: 'Firefox 75', type: 'string'},{text: 'Firefox 74', type: 'string'},{text: 'IE 12', type: 'string'},{text: 'IE 11', type: 'string'},{text: 'Edge', type: 'string'},{text: 'iOS 12', type: 'string'},{text: 'Android', type: 'string'}],
+          rows: [["Abc","Pass","Fail","Pass","Fail","Pass","Fail","Pass","Fail","Pass","Fail","Pass",]],
           "type":"table"
         };
         console.log(table);
