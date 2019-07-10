@@ -477,7 +477,7 @@ function getSummary(body,target){
         }
         dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             if (err) throw err;
-            var mostRecentRecord = {"target": "FeatureRun"};
+            var mostRecentRecord = {"target": "Summary"};
             var datapoints = [];
             data.forEach(function(record){
                 
@@ -832,6 +832,7 @@ function getStepsRunTable(body,target){
                             eachStep.push((step.embeddings!=null)?step.embeddings[0].data:null);
                             eachStep.push((step.embeddings!=null)?step.embeddings[0].mime_type:null);
                             eachStep.push((step.result.error_message!=null)?step.result.error_message:null);
+                            eachStep.push((step.output!=null)?step.output:null);
                             datapoints.push(eachStep);
                         });
                         after_steps.push(element.name + "_afterHook");
@@ -852,7 +853,7 @@ function getStepsRunTable(body,target){
             steps['datapoints'] = datapoints;
             var table =
 			  {
-			    columns: [{text: 'Step Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Duration', type: 'number'}, {text: 'Data', type: 'string'}, {text: 'Mime', type: 'string'}, {text: 'Error', type: 'string'}],
+			    columns: [{text: 'Step Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Duration', type: 'number'}, {text: 'Data', type: 'string'}, {text: 'Mime', type: 'string'}, {text: 'Error', type: 'string'}, {text: 'Output', type: 'string'}],
 			    rows: datapoints,
 			    "type":"table"
 			  };
