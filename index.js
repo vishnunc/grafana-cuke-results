@@ -405,7 +405,7 @@ function getRunData(body,target){
 
                 });
                 }
-                run_datapoints.push([record._id,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),environment.join(' ; ')])
+                run_datapoints.push([record._id,Math.floor(new Date(record._id.getTimestamp()))+"_"+record.metadata.locale+"_"+(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)+"_"+record.metadata.driverType,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),environment.join(' ; ')])
             });
            // pass['datapoints'] = pass_datapoints;
             //fail['datapoints'] = fail_datapoints;
@@ -419,7 +419,7 @@ function getRunData(body,target){
             // return featuresData;
           var table =
         {
-          columns: [{text: 'Run ID', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'},{text: 'Environment', type: 'string'}],
+          columns: [{text: 'Run ID', type: 'string'},{text: 'Run Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'},{text: 'Total Time', type: 'number'},{text: 'Environment', type: 'string'}],
           rows: run_datapoints,
           "type":"table"
         };
