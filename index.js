@@ -508,7 +508,9 @@ function getSummary(body,target){
                         passCount += 1;
                     } 
                 });
-                if(failCount>1){
+                console.log(failCount)
+                console.log(passCount)
+                if(failCount>0){
                   failCount=1
                   passCount=0
                 }
