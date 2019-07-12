@@ -280,8 +280,8 @@ function getFeaturesData(body,target){
                 fail_datapoints.push([failCount,Math.floor(new Date(record._id.getTimestamp()) )]);
                 
             });
-            pass['datapoints'] = pass_datapoints;
-            fail['datapoints'] = fail_datapoints;
+            pass['datapoints'] = _.reverse(pass_datapoints);
+            fail['datapoints'] = _.reverse(fail_datapoints);
             // pass['datapoints'] = [];
             // fail['datapoints'] = [];
             // console.log("records count: "+c);
