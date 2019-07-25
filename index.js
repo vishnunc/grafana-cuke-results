@@ -615,13 +615,50 @@ function getFeaturesTable(body,target){
     // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
     // ["efg feature name","Fail",30]]}
     return new Promise(function(resolve, reject){
-    id=body.adhocFilters[0].value
+    var filters=[];
+    var tags=[];
+    var limit=500;
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.tags.name`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Count"){
+
+            limit=parseInt(filter.value);
+            console.log(limit)
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+     
     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
-        
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
         //.limit(1).sort({$natural:-1})
-        dbo.collection(collection).find({}).sort({$natural:-1}).toArray(function(err, data){
+        dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             // console.log(data);
             var mostRecentRecord = {"target": "Features"};
             var datapoints = [];
