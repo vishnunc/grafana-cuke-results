@@ -650,6 +650,8 @@ function getFeaturesTable(body,target){
     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
         filter={}
         if(filters.length==0){
           filter={_id:{"$lt":toTime,"$gt":fromTime}}
