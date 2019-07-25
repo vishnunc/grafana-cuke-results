@@ -5,6 +5,7 @@
 {"type":"string","text":"locale"},
 {"type":"string","text":"Tags"},
 {"type":"string","text":"Count"},
+{"type":"string","text":"Environment"},
 {"type":"string","text":"driverType"},
 {"type":"string","text":"isMobile"},
 {"type":"string","text":"mobileDeviceName"},
