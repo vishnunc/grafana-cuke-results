@@ -76,7 +76,7 @@ app.all('/search', function(req, res){
   setCORSHeaders(res);
   console.log(req.body)
   if(req.body.target==''){
-    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","ScenariosRun","StepsRun","StepDetails","MetaData","TestData"];
+    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData"];
     res.json(result);
     res.end();
   }
@@ -164,6 +164,9 @@ async function getData(body,target){
 		case "FeaturesRun":
 			return getFeaturesRunTable(body,target);
 			break;
+    case "Features":
+      return getFeaturesTable(body,target);
+      break;
 		case "ScenariosRun":
 			return getScenariosRunTable(body,target);
 			break;
@@ -601,6 +604,64 @@ function getFeaturesRunTable(body,target){
 			    "type":"table"
 			  };
 			  console.log(table);
+            resolve(table);
+        });
+    });
+    });
+}
+function getFeaturesTable(body,target){
+
+    // format
+    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
+    // ["efg feature name","Fail",30]]}
+    return new Promise(function(resolve, reject){
+    id=body.adhocFilters[0].value
+    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        
+        //.limit(1).sort({$natural:-1})
+        dbo.collection(collection).find({}).sort({$natural:-1}).toArray(function(err, data){
+            // console.log(data);
+            var mostRecentRecord = {"target": "Features"};
+            var datapoints = [];
+            data.forEach(function(record){
+                
+                record.result.forEach(function(feature){
+                    var featureData = []
+                    var duration = 0;
+                    var feature_status = "passed";
+                    featureData.push(feature.uri);
+                    feature.elements.forEach(function(element){
+                        element.steps.forEach(function(step){
+                            duration = duration + step.result.duration/1000000000.0;
+                            if(step.result.status != "passed"){
+                                feature_status = "failed"
+                            }else{
+                                feature_status = "passed"
+                            }
+                        });
+                    });
+                    if(feature_status == "passed"){
+                        featureData.push(1);
+                    }else{
+                        featureData.push(0);
+                    }
+                    featureData.push(duration);
+               
+                    datapoints.push(featureData);
+                });
+                
+            });
+            mostRecentRecord['datapoints'] = datapoints;
+            
+            var table =
+        {
+          columns: [{text: 'Feature', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Duration', type: 'number'}],
+          rows: datapoints,
+          "type":"table"
+        };
+        console.log(table);
             resolve(table);
         });
     });
