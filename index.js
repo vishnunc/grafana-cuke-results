@@ -776,14 +776,14 @@ function getTestData(body,target){
             featureNum=-1
             featureFound=false
             data.forEach(function(record){
-                console.log('1')
+                
                 record.result.forEach(function(feature){
                   feature.elements.forEach(function(scenario){
-                    console.log('2')
+                    
                     featureNum=featureNum+1;
                     if(scenario.id==sceneName){
                       featureFound=true;
-                      console.log('3')
+                      
                       return;
                     }
                   })
@@ -796,8 +796,8 @@ function getTestData(body,target){
                 Object.keys(record.testData[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
-                    datapoints.push(key);
-                    datapoints.push(record.testData[featureNum][key]);
+                    
+                    datapoints.push([key,record.testData[featureNum][key]]);
 
                 });
              }   
@@ -805,8 +805,8 @@ function getTestData(body,target){
                  Object.keys(record.generatedData[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
-                    datapoints.push(key);
-                    datapoints.push(record.generatedData[featureNum][key]);
+                    
+                    datapoints.push([key,record.generatedData[featureNum][key]]);
 
                 });
              }  
@@ -814,8 +814,8 @@ function getTestData(body,target){
                 Object.keys(record.apiData[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
-                    datapoints.push(key);
-                    datapoints.push(record.apiData[featureNum][key]);
+                    
+                    datapoints.push([key,record.apiData[featureNum][key]]);
 
                 });
              }  
@@ -823,8 +823,8 @@ function getTestData(body,target){
                 Object.keys(record.dataBaseOutput[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
-                    datapoints.push(key);
-                    datapoints.push(record.dataBaseOutput[featureNum][key]);
+                    
+                    datapoints.push([key,record.dataBaseOutput[featureNum][key]]);
 
                 });
              }   
@@ -832,8 +832,8 @@ function getTestData(body,target){
                 Object.keys(record.dataBaseOutput[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
-                    datapoints.push(key);
-                    datapoints.push(record.dataBaseOutput[featureNum][key]);
+                   
+                    datapoints.push([key,record.dataBaseOutput[featureNum][key]]);
 
                 });
              }     
@@ -842,7 +842,7 @@ function getTestData(body,target){
             var table =
         {
           columns: [{text:"Key",type:"string"},{text:"Value",type:"string"}],
-          rows: [datapoints],
+          rows: datapoints,
           "type":"table"
         };
         console.log(table);
