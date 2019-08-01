@@ -76,7 +76,7 @@ app.all('/search', function(req, res){
   setCORSHeaders(res);
   console.log(req.body)
   if(req.body.target==''){
-    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable"];
+    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable","FeaturesBrowserSummaryTable"];
     res.json(result);
     res.end();
   }
@@ -190,6 +190,9 @@ async function getData(body,target){
       break;
     case "ReportTable":
       return getReportTable(body,target);
+      break;
+    case "FeaturesBrowserSummaryTable":
+      return getFeaturesBrowserSummaryTable(body,target);
       break;
 	}
 }
@@ -305,6 +308,161 @@ function getFeaturesData(body,target){
     });
   });
     
+}
+
+function getFeaturesBrowserSummaryTable(body,target){
+
+    // format
+    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
+    // ["efg feature name","Fail",30]]}
+    return new Promise(function(resolve, reject){
+    var filters=[];
+    var tags=[];
+    var limit=500;
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.tags.name`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Count"){
+
+            limit=parseInt(filter.value);
+            console.log(limit)
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+     
+    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        //.limit(1).sort({$natural:-1})
+        dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
+            // console.log(data);
+            var mostRecentRecord = {"target": "FeaturesBrowserSummaryTable"};
+            var datapoints = [];
+            var recpoints = {};
+            data.forEach(function(record){
+                
+                record.result.forEach(function(feature){
+                    var featureData = []
+                    var duration = 0;
+                    var chromeBrowserPass=0;
+                    var firefoxBrowserPass=0;
+                    var ieBrowserPass=0;
+                    var edgeBrowserPass=0;
+                    var iosBrowserPass=0;
+                    var androidBrowserPass=0;
+                    var chromeBrowserFail=0;
+                    var firefoxBrowserFail=0;
+                    var ieBrowserFail=0;
+                    var edgeBrowserFail=0;
+                    var iosBrowserFail=0;
+                    var androidBrowserFail=0;
+                    var feature_status = "passed";
+                    //featureData.push(feature.uri);
+                    feature.elements.forEach(function(element){
+                        element.steps.forEach(function(step){
+                            
+                            if(step.result.status != "passed"){
+                                feature_status = "failed"
+                            }else{
+                                feature_status = "passed"
+                            }
+                        });
+                    });
+                    if(feature_status == "passed"){
+                        switch (record.metadata.Browser!=null?record.metadata.Browser.toLowerCase():record.metadata.mobilePlatformName.toLowerCase()){
+                          case "chrome":
+                              chromeBrowserPass+=1;
+                          case "firefox":
+                              firefoxBrowserPass+=1;
+                          case "iexplorer":
+                              ieBrowserPass+=1;
+                          case "edge":
+                              edgeBrowserPass+=1;
+                          case "ios":
+                              iosBrowserPass+=1;
+                          case "android":
+                              androidBrowserPass+=1;
+                        }
+
+                    }else{
+                        switch (record.metadata.Browser!=null?record.metadata.Browser.toLowerCase():record.metadata.mobilePlatformName.toLowerCase()){
+                          case "chrome":
+                              chromeBrowserFail+=1;
+                          case "firefox":
+                              firefoxBrowserFail+=1;
+                          case "iexplorer":
+                              ieBrowserFail+=1;
+                          case "edge":
+                              edgeBrowserFail+=1;
+                          case "ios":
+                              iosBrowserFail+=1;
+                          case "android":
+                              androidBrowserFail+=1;
+                        }
+                    }
+                    featureData.push(chromeBrowserPass-chromeBrowserFail);
+                    featureData.push(firefoxBrowserPass-firefoxBrowserFail);
+                    featureData.push(ieBrowserPass-ieBrowserFail);
+                    featureData.push(edgeBrowserPass-edgeBrowserFail);
+                    featureData.push(iosBrowserPass-iosBrowserFail);
+                    featureData.push(androidBrowserPass-androidBrowserFail);
+                    if(recpoints[feature.uri]===undefined){
+                          recpoints[feature.uri]=featureData;
+                    }
+                    else
+                    {
+                      recpoints[feature.uri]=  recpoints[feature.uri].map(function(x, index){ //here x = a[index]
+                       return featureData[index] + x 
+                      });
+ 
+                    }
+                    
+                });
+                
+            });
+            Object.keys(recpoints).forEach(function(points){
+              recpoints[points].unshift(points)
+              datapoints.push(recpoints[points]);
+            })
+           
+            var table =
+            {
+              columns: [{text: 'Feature', type: 'string'}, {text: 'Chrome', type: 'number'}, {text: 'Firefox', type: 'number'},{text: 'IE', type: 'number'},{text: 'Edge', type: 'number'},{text: 'iOS', type: 'number'},{text: 'Android', type: 'number'}],
+              rows: datapoints,
+              "type":"table"
+            };
+        console.log(table);
+            resolve(table);
+        });
+    });
+    });
 }
 
 function getRunData(body,target){
