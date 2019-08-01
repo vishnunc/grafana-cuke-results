@@ -399,32 +399,44 @@ function getFeaturesBrowserSummaryTable(body,target){
                         switch (record.metadata.Browser!=null?record.metadata.Browser.toLowerCase():record.metadata.mobilePlatformName.toLowerCase()){
                           case "chrome":
                               chromeBrowserPass+=1;
+                              break;
                           case "firefox":
                               firefoxBrowserPass+=1;
+                              break;
                           case "iexplorer":
                               ieBrowserPass+=1;
+                              break;
                           case "edge":
                               edgeBrowserPass+=1;
+                              break;
                           case "ios":
                               iosBrowserPass+=1;
+                              break;
                           case "android":
                               androidBrowserPass+=1;
+                              break;
                         }
 
                     }else{
                         switch (record.metadata.Browser!=null?record.metadata.Browser.toLowerCase():record.metadata.mobilePlatformName.toLowerCase()){
                           case "chrome":
                               chromeBrowserFail+=1;
+                              break;
                           case "firefox":
                               firefoxBrowserFail+=1;
+                              break;
                           case "iexplorer":
                               ieBrowserFail+=1;
+                              break;
                           case "edge":
                               edgeBrowserFail+=1;
+                              break;
                           case "ios":
                               iosBrowserFail+=1;
+                              break;
                           case "android":
                               androidBrowserFail+=1;
+                              break;
                         }
                     }
                     featureData.push(chromeBrowserPass-chromeBrowserFail);
