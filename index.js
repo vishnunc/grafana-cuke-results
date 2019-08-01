@@ -76,7 +76,7 @@ app.all('/search', function(req, res){
   setCORSHeaders(res);
   console.log(req.body)
   if(req.body.target==''){
-    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData"];
+    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable"];
     res.json(result);
     res.end();
   }
@@ -187,6 +187,9 @@ async function getData(body,target){
       break;
     case "Runs":
       return getRunData(body,target);
+      break;
+    case "ReportTable":
+      return getReportTable(body,target);
       break;
 	}
 }
@@ -321,6 +324,7 @@ function getRunData(body,target){
           opobj[foperator]=filter.value;
           obj[fkey]=opobj
           filters.push(obj);
+          tags.push(filter.value);
         }
         else if(filter.key=="Count"){
             limit=parseInt(filter.value)+1;
@@ -364,7 +368,7 @@ function getRunData(body,target){
                 var passCount = 0;
                 var failCount = 0;
                 var filterFail=false;
-                var error="";
+                var error=[];
                 record.result.forEach(function(feature){
                     // console.log(feature, c)
                     /*filterFail=false;
@@ -389,7 +393,7 @@ function getRunData(body,target){
                             if(step.result.status != "passed"){
                                 feature_status = "failed";
                                 if(step.result.status=="failed" && step.result.error_message.indexOf("APP:")!=-1){
-                                  error=step.result.error_message.substring(step.result.error_message.indexOf("APP:")+4,step.result.error_message.indexOf(","));
+                                  error.push(step.result.error_message.substring(step.result.error_message.indexOf("APP:")+4,step.result.error_message.indexOf(",")));
                                 }
                                 
                             }
@@ -413,7 +417,7 @@ function getRunData(body,target){
 
                 });
                 }
-                run_datapoints.push([record._id,new Date(record._id.getTimestamp()).toISOString()+"_"+record.metadata.locale+"_"+(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)+"_"+record.metadata.driverType,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),error,record.metadata.Environment,(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)])
+                run_datapoints.push([record._id,tags.join("_").replace("@","")+"_"+new Date(record._id.getTimestamp()).toISOString().slice(0,10)+"_"+record.metadata.Environment+"_"+record.metadata.locale,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),failCount,passCount,error.join(","),record.metadata.Environment,(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)])
             });
            // pass['datapoints'] = pass_datapoints;
             //fail['datapoints'] = fail_datapoints;
@@ -427,7 +431,7 @@ function getRunData(body,target){
             // return featuresData;
           var table =
         {
-          columns: [{text: 'Run ID', type: 'string'},{text: 'Run Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'},{text: 'Total Time', type: 'number'},{text: 'Failed App', type: 'string'},{text: 'Environment', type: 'string'},{text: 'Browser', type:'string'}],
+          columns: [{text: 'Run ID', type: 'string'},{text: 'Run Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'},{text: 'Total Time', type: 'number'},{text: 'Failed', type:'string'},{text: 'Passed', type:'string'},{text: 'Failed App', type: 'string'},{text: 'Environment', type: 'string'},{text: 'Browser', type:'string'}],
           rows: run_datapoints,
           "type":"table"
         };
@@ -574,6 +578,7 @@ function getFeaturesRunTable(body,target){
                     var duration = 0;
                     var feature_status = "passed";
                     featureData.push(feature.uri);
+                    featureData.push(feature.name);
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
                             duration = duration + step.result.duration/1000000000.0;
@@ -599,7 +604,7 @@ function getFeaturesRunTable(body,target){
             
             var table =
 			  {
-			    columns: [{text: 'Feature', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Duration', type: 'number'}],
+			    columns: [{text: 'Feature', type: 'string'}, {text: 'Description', type: 'string'},{text: 'Status', type: 'number'}, {text: 'Duration', type: 'number'}],
 			    rows: datapoints,
 			    "type":"table"
 			  };
@@ -791,6 +796,7 @@ function getTestData(body,target){
                 Object.keys(record.testData[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
+                    datapoints.push(key);
                     datapoints.push(record.testData[featureNum][key]);
 
                 });
@@ -799,6 +805,7 @@ function getTestData(body,target){
                  Object.keys(record.generatedData[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
+                    datapoints.push(key);
                     datapoints.push(record.generatedData[featureNum][key]);
 
                 });
@@ -807,6 +814,7 @@ function getTestData(body,target){
                 Object.keys(record.apiData[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
+                    datapoints.push(key);
                     datapoints.push(record.apiData[featureNum][key]);
 
                 });
@@ -815,6 +823,7 @@ function getTestData(body,target){
                 Object.keys(record.dataBaseOutput[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
+                    datapoints.push(key);
                     datapoints.push(record.dataBaseOutput[featureNum][key]);
 
                 });
@@ -823,6 +832,7 @@ function getTestData(body,target){
                 Object.keys(record.dataBaseOutput[featureNum]).forEach(function(key){
 
                     colpoints.push({text:key,type:'string'});
+                    datapoints.push(key);
                     datapoints.push(record.dataBaseOutput[featureNum][key]);
 
                 });
@@ -831,7 +841,7 @@ function getTestData(body,target){
             
             var table =
         {
-          columns: colpoints,
+          columns: [{text:"Key",type:"string"},{text:"Value",type:"string"}],
           rows: [datapoints],
           "type":"table"
         };
@@ -934,7 +944,7 @@ function getStepsRunTable(body,target){
                          //console.log(sceneName);
                         var before_steps = [];
                             var after_steps = [];
-                            before_steps.push(element.name + "_beforeHook");
+                            before_steps.push("Browser and Env Setup");
                             if (element.before[0].result.status === "passed")
                                 before_steps.push(1);
                             else
@@ -950,8 +960,11 @@ function getStepsRunTable(body,target){
                             eachStep.push(step.name);
                             if(step.result.status === "passed"){
                                 eachStep.push(1);
-                            }else{
+                            }else if(step.result.status === "failed"){
                                 eachStep.push(0);
+                            }
+                            else{
+                              eachStep.push(-1);
                             }
                             eachStep.push(step.result.duration/1000000000.0);
                             eachStep.push((step.embeddings!=null)?step.embeddings[0].data:null);
@@ -960,7 +973,7 @@ function getStepsRunTable(body,target){
                             eachStep.push((step.output!=null)?step.output:null);
                             datapoints.push(eachStep);
                         });
-                        after_steps.push(element.name + "_afterHook");
+                        after_steps.push("Clean up");
                             if (element.after[0].result.status === "passed")
                                 after_steps.push(1);
                             else
