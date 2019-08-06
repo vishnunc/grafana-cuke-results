@@ -741,7 +741,7 @@ function getRunData(body,target){
 
                 });
                 }
-                run_datapoints.push([record._id,tags[0].replace("@","")+"_"+new Date(record._id.getTimestamp()).toISOString().slice(0,10)+"_"+record.metadata.Environment+"_"+record.metadata.locale,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),failCount,passCount,error.join(","),record.metadata.Environment,(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)])
+                run_datapoints.push([record._id,tags[0].replace("@","")+"_"+new Date(record._id.getTimestamp()).toISOString().slice(0,16).replace(":","")+"_"+record.metadata.Environment+"_"+record.metadata.locale,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),failCount,passCount,error.join(","),record.metadata.Environment,(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)])
             });
            // pass['datapoints'] = pass_datapoints;
             //fail['datapoints'] = fail_datapoints;
@@ -1469,7 +1469,7 @@ function getAPITestSuiteHistory(body,target){
         else{
           filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
         }
-        dbo.collection(api_collection).aggregate([{"$group":{"_id":"$labels.value","status":{"$push":"$status"},"timestamp":{"$push":"$_id"}}}]).toArray(function(err, data){
+        dbo.collection(api_collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             if (err) throw err;
             // result = data;
             var c = 0;
@@ -1477,33 +1477,35 @@ function getAPITestSuiteHistory(body,target){
             var fail = {"target": "APISuiteFailHistory"};
             var pass_datapoints = [];
             var fail_datapoints = [];
-            
-
-
+            var mySuite={};
+            var myPassTests={};
+            var myFailTests={};
             data.forEach(function(record){
-                var passCount = 0;
-                var failCount = 0;
-                record.status.forEach(function(stat){
-                    if(stat != "passed"){
-                    failCount += 1;
-                    
-                    
-                    }else{
-                        passCount += 1;
-                        
-                    }
-                });
-                if(failCount>0){
-                  fail_datapoints.push([failCount,Math.floor(new Date(Date.now()) )]);
+                if(record.status==="passed"){
+                  if(myPassTests[record.name]!=undefined){
+                      myPassTests[record.name]+=1;
+                  }
+                  else{
+                      myPassTests[record.name]=1;
+                  }
                 }
-                else{
-                  pass_datapoints.push([passCount,Math.floor(new Date(Date.now()) )]);
+                else
+                {
+                  if(myFailTests[record.name]!=undefined){
+                      myFailTests[record.name]+=1;
+                  }
+                  else{
+                      myFailTests[record.name]=1;
+                  }
                 }
+
                 
             });
-            
-            
-            
+            Object.keys(myPassTests).forEach(function(pass){
+
+            })
+            console.log(myPassTests);
+            console.log(myFailTests);
             pass['datapoints'] = pass_datapoints;
             fail['datapoints'] = fail_datapoints;
             // pass['datapoints'] = [];
@@ -1513,7 +1515,7 @@ function getAPITestSuiteHistory(body,target){
             featuresData.push(fail);
             
             // return featuresData;
-            console.log(target)
+            
             if(target=="APISuitePassHistory"){
               resolve(featuresData[0]);
              }
