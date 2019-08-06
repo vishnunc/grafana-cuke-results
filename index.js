@@ -11,6 +11,7 @@ var filtertags=require('./filtertags');
 
 var url = "mongodb://10.1.70.74:27017/Automation_Results";
 var collection="Regression_Results";
+var api_collection="API_Results";
 var app = express();
 
 var fs = require('fs'),
@@ -76,7 +77,7 @@ app.all('/search', function(req, res){
   setCORSHeaders(res);
   console.log(req.body)
   if(req.body.target==''){
-    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","RecentFeaturesRun","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable","FeaturesBrowserSummaryTable","FailureTable","APIRunHistory","APITestCaseHistory","APITestSteps"];
+    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","RecentFeaturesRun","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable","FeaturesBrowserSummaryTable","FailureTable","APIPassSuiteHistory","APIFailSuiteHistory","APITestCaseHistory","APITestSteps"];
     res.json(result);
     res.end();
   }
@@ -200,8 +201,11 @@ async function getData(body,target){
     case "FailureTable":
       return getFailuresTable(body,target);
       break;
-    case "APIRunHistory":
-      return getAPIRunHistory(body,target);
+    case "APIFailSuiteHistory":
+      return getAPITestSuiteHistory(body,target);
+      break;
+    case "APIPassSuiteHistory":
+      return getAPITestSuiteHistory(body,target);
       break;
     case "APITestCaseHistory":
       return getAPITestCaseHistory(body,target);
@@ -1418,6 +1422,109 @@ function getStepsRunTable(body,target){
     });
     });
 }
+function getAPITestSuiteHistory(body,target){
+    return new Promise(function(resolve,reject){
+    var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500;
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`labels.value`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Count"){
+
+            limit=parseInt(filter.value);
+            console.log(limit)
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+     
+     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(api_collection).aggregate([{"$group":{"_id":"$labels.value","status":{"$push":"$status"},"timestamp":{"$push":"$_id"}}}]).toArray(function(err, data){
+            if (err) throw err;
+            // result = data;
+            var c = 0;
+            var pass = {"target": "APISuitePassHistory"};
+            var fail = {"target": "APISuiteFailHistory"};
+            var pass_datapoints = [];
+            var fail_datapoints = [];
+            
+
+
+            data.forEach(function(record){
+                var passCount = 0;
+                var failCount = 0;
+                record.status.forEach(function(stat){
+                    if(stat != "passed"){
+                    failCount += 1;
+                    
+                    
+                    }else{
+                        passCount += 1;
+                        
+                    }
+                });
+                if(failCount>0){
+                  fail_datapoints.push([failCount,Math.floor(new Date(Date.now()) )]);
+                }
+                else{
+                  pass_datapoints.push([passCount,Math.floor(new Date(Date.now()) )]);
+                }
+                
+            });
+            
+            
+            
+            pass['datapoints'] = pass_datapoints;
+            fail['datapoints'] = fail_datapoints;
+            // pass['datapoints'] = [];
+            // fail['datapoints'] = [];
+            // console.log("records count: "+c);
+            featuresData.push(pass);
+            featuresData.push(fail);
+            
+            // return featuresData;
+            console.log(target)
+            if(target=="APISuitePassHistory"){
+              resolve(featuresData[0]);
+             }
+             else{
+              resolve(featuresData[1]);
+             }
+        });
+    });
+  });
+    
+}
 function getStepDetailsTable(body,target){
 
     // {"target":"StepsRun","datapoints":[["Xyz step name","Pass",30],["efg step name","Fail",30]]}
@@ -1444,13 +1551,16 @@ function getStepDetailsTable(body,target){
                          
                             var after_steps = [];
                             var steps=[];
-                            if(element.after[0].embeddings!=null){
-                            element.after[0].embeddings.forEach(function(embeds){
-                            	after_steps.push(embeds.mime_type);
-                            	after_steps.push(embeds.data);
-                            	
-                            })
-                          }
+                            element.after.forEach(function(detail){
+                                if(detail.embeddings!=null){
+                                  detail.embeddings.forEach(function(embeds){
+                                    after_steps.push(embeds.mime_type);
+                                    after_steps.push(embeds.data);
+                                    
+                                  })
+                                }
+                            });
+                            
                             element.steps.forEach(function(step){
                             	if(step.embeddings!=null){
 	                            	steps.push(step.embeddings[0].mime_type);
