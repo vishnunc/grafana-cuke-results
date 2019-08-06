@@ -741,7 +741,7 @@ function getRunData(body,target){
 
                 });
                 }
-                run_datapoints.push([record._id,tags.join("_").replace("@","")+"_"+new Date(record._id.getTimestamp()).toISOString().slice(0,10)+"_"+record.metadata.Environment+"_"+record.metadata.locale,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),failCount,passCount,error.join(","),record.metadata.Environment,(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)])
+                run_datapoints.push([record._id,tags[0].replace("@","")+"_"+new Date(record._id.getTimestamp()).toISOString().slice(0,10)+"_"+record.metadata.Environment+"_"+record.metadata.locale,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),failCount,passCount,error.join(","),record.metadata.Environment,(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)])
             });
            // pass['datapoints'] = pass_datapoints;
             //fail['datapoints'] = fail_datapoints;
