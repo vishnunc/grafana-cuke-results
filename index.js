@@ -1870,8 +1870,11 @@ function getAPITestSteps(body,target){
                       stepData.push(request);
                       response=step.parameters[0].value.split("---------------- Response --------------------------")[1]
                       stepData.push(response);
+                      message=step.parameters[0].value.split("----------------- Messages ------------------------------")[1].split("----------------- Properties ------------------------------")[0];
+                      stepData.push(message);
                     }
                     else{
+                      stepData.push("");
                       stepData.push("");
                       stepData.push("");
                     }
@@ -1886,7 +1889,7 @@ function getAPITestSteps(body,target){
             console.log(stepData)
             var table =
             {
-              columns: [{text: 'Step Name', type: 'string'}, {text: 'Status', type: 'number'},{text: 'Duration', type: 'number'},{text: 'Request', type: 'string'},{text: 'Response', type: 'string'}],
+              columns: [{text: 'Step Name', type: 'string'}, {text: 'Status', type: 'number'},{text: 'Duration', type: 'number'},{text: 'Request', type: 'string'},{text: 'Response', type: 'string'},{text: 'Messages', type: 'string'}],
               rows: datapoints,
               "type":"table"
             };
