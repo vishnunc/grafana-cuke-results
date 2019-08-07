@@ -1801,7 +1801,11 @@ function getAPITestCaseHistory(body,target){
             var datapoints = [];
             
             data.forEach(function(record){
-                datapoints.push([record._id,record.name,record.status,record.stop-record.start])
+              var status=0
+                if(record.status==="passed"){
+                  status=1
+                }
+                datapoints.push([record._id,record.name,status,record.stop-record.start])
                 
             });
            
