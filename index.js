@@ -1725,15 +1725,17 @@ function getAPITestSuiteHistoryTable(body,target){
             var datapoints=[]
             Object.keys(myTests).forEach(function(me){
                 var medata=[];
-                medata.push(me)
-                medata.push(myTests[me][0],myTests[me][1],myTests[me][2])
-                datapoints.push(medata)
+
+                medata.push(filters[0]['labels.value']['$regex'].replace(".*",""));
+                medata.push(me);
+                medata.push(myTests[me][0],myTests[me][1],myTests[me][2]);
+                datapoints.push(medata);
             })
             
             
             var table =
         {
-          columns: [{text: 'Test Name', type: 'string'}, {text: 'Passed', type: 'number'},{text: 'Failed', type: 'number'},{text: 'Recent Run Duration', type: 'number'}],
+          columns: [{text: 'Suite Name', type: 'string'},{text: 'Test Name', type: 'string'}, {text: 'Passed', type: 'number'},{text: 'Failed', type: 'number'},{text: 'Recent Run Duration', type: 'number'}],
           rows: datapoints,
           "type":"table"
         };
