@@ -77,7 +77,7 @@ app.all('/search', function(req, res){
   setCORSHeaders(res);
   console.log(req.body)
   if(req.body.target==''){
-    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","RecentFeaturesRun","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable","FeaturesBrowserSummaryTable","FailureTable","APIPassSuiteHistory","APIFailSuiteHistory","APITestCaseHistory","APITestSteps"];
+    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","RecentFeaturesRun","RecentRunMetaData","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable","FeaturesBrowserSummaryTable","FailureTable","APIPassSuiteHistory","APIFailSuiteHistory","APITestCaseHistory","APITestSteps"];
     res.json(result);
     res.end();
   }
@@ -212,6 +212,9 @@ async function getData(body,target){
       break;
     case "APITestSteps":
       return getAPITestCaseHistory(body,target);
+      break;
+    case "RecentRunMetaData":
+      return getRecentRunMetaData(body,target);
       break;
 
 	}
@@ -767,6 +770,100 @@ function getRunData(body,target){
   });
     
 }
+
+function getRecentRunMetaData(body,target){
+
+    // format
+    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
+    // ["efg feature name","Fail",30]]}
+    return new Promise(function(resolve, reject){
+    var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.tags.name`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+          tags.push(filter.value);
+        }
+        else if(filter.key=="Count"){
+            limit=parseInt(filter.value)+1;
+            console.log(limit)
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(collection).find(filter).sort({$natural:-1}).limit(1).toArray(function(err, data){
+            // console.log(data);
+            var mostRecentRecord = {"target": "FeatureRun"};
+            var datapoints = [];
+            var duration
+            data.forEach(function(record){
+                
+                record.result.forEach(function(feature){
+                    var featureData = []
+                    var duration = 0;
+                    var feature_status = "passed";
+                    var options = { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' };
+                    featureData.push(new Date(record._id.getTimestamp()).toLocaleString("en-US"));
+                    featureData.push(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobilePlatformName);
+                    featureData.push(record.metadata.locale);
+                    featureData.push(record.metadata.Environment);
+                    feature.elements.forEach(function(element){
+                        element.steps.forEach(function(step){
+                            duration = duration + step.result.duration/1000000000.0;
+                            
+                        });
+                    });
+                    
+                    featureData.push(duration);
+                    datapoints.push(featureData);
+                });
+
+            });
+            mostRecentRecord['datapoints'] = datapoints;
+            
+            var table =
+        {
+          columns: [{text: 'Execution Time', type: 'string'},{text: 'Browser', type: 'string'}, {text: 'Locale', type: 'string'},{text: 'Environment', type: 'string'}, {text: 'Duration', type: 'number'}],
+          rows: datapoints,
+          "type":"table"
+        };
+        console.log(table);
+            resolve(table);
+        });
+    });
+    });
+}
+
 function getRecentFeaturesRunTable(body,target){
 
     // format
