@@ -1756,6 +1756,16 @@ function getAPITestCaseHistory(body,target){
         
         if(filter.key=="Tags"){
           //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`labels.value`;
+          foperator=(filter.operator=='!='?'$not':'$regex');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=`${filter.value}.*`;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        if(filter.key=="TestName"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
           fkey=`name`;
           foperator=(filter.operator=='!='?'$not':'$regex');
           var obj={};
