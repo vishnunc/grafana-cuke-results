@@ -825,18 +825,16 @@ function getRecentRunMetaData(body,target){
             // console.log(data);
             var mostRecentRecord = {"target": "FeatureRun"};
             var datapoints = [];
-            var duration
+            var duration=0;
             data.forEach(function(record){
                 
                 record.result.forEach(function(feature){
                     var featureData = []
-                    var duration = 0;
+                    
                     var feature_status = "passed";
                     var options = { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' };
-                    featureData.push(new Date(record._id.getTimestamp()).toLocaleString("en-US"));
-                    featureData.push(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobilePlatformName);
-                    featureData.push(record.metadata.locale);
-                    featureData.push(record.metadata.Environment);
+                    featureData.push();
+                    
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
                             duration = duration + step.result.duration/1000000000.0;
@@ -844,17 +842,21 @@ function getRecentRunMetaData(body,target){
                         });
                     });
                     
-                    featureData.push(duration);
-                    datapoints.push(featureData);
+                    
+                    
                 });
-
+                  datapoints.push(new Date(record._id.getTimestamp()).toLocaleString("en-US"));
+                  datapoints.push(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobilePlatformName);
+                  datapoints.push(record.metadata.locale);
+                  datapoints.push(record.metadata.Environment);
+                  datapoints.push(duration);
             });
             mostRecentRecord['datapoints'] = datapoints;
             
             var table =
         {
           columns: [{text: 'Execution Time', type: 'string'},{text: 'Browser', type: 'string'}, {text: 'Locale', type: 'string'},{text: 'Environment', type: 'string'}, {text: 'Duration', type: 'number'}],
-          rows: datapoints,
+          rows: [datapoints],
           "type":"table"
         };
         console.log(table);
@@ -1653,8 +1655,8 @@ function getStepDetailsTable(body,target){
                             element.after.forEach(function(detail){
                                 if(detail.embeddings!=null){
                                   detail.embeddings.forEach(function(embeds){
-                                    after_steps.push(embeds.mime_type);
-                                    after_steps.push(embeds.data);
+                                    after_steps.push([embeds.mime_type,embeds.data]);
+                                    //after_steps.push(embeds.data);
                                     
                                   })
                                 }
@@ -1669,7 +1671,7 @@ function getStepDetailsTable(body,target){
                             })
             
                             datapoints.push(after_steps);
-                            datapoints.push(steps);
+                            //datapoints.push(steps);
                         
                     }
                     
@@ -1679,7 +1681,7 @@ function getStepDetailsTable(body,target){
             var table =
 			  {
 			    columns: [{text: 'Details', type: 'string'}, {text: 'Value', type: 'number'}],
-			    rows: datapoints,
+			    rows: datapoints[0],
 			    "type":"table"
 			  };
 			  console.log(table);
