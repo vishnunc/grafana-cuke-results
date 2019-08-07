@@ -77,7 +77,7 @@ app.all('/search', function(req, res){
   setCORSHeaders(res);
   console.log(req.body)
   if(req.body.target==''){
-    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","RecentFeaturesRun","RecentRunMetaData","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable","FeaturesBrowserSummaryTable","FailureTable","APIPassSuiteHistory","APIFailSuiteHistory","APITestCaseHistory","APITestSteps"];
+    var result = ["PassHistory","FailHistory","RunFailHistory","RunPassHistory","Runs","FeaturesRun","RecentFeaturesRun","RecentRunMetaData","Features","ScenariosRun","StepsRun","StepDetails","MetaData","TestData","ReportTable","FeaturesBrowserSummaryTable","FailureTable","APIPassSuiteHistory","APIFailSuiteHistory","APITestSuiteHistoryTable","APITestCaseHistory","APITestSteps"];
     res.json(result);
     res.end();
   }
@@ -207,15 +207,18 @@ async function getData(body,target){
     case "APIPassSuiteHistory":
       return getAPITestSuiteHistory(body,target);
       break;
-    case "APITestCaseHistory":
-      return getAPITestCaseHistory(body,target);
-      break;
-    case "APITestSteps":
-      return getAPITestCaseHistory(body,target);
-      break;
     case "RecentRunMetaData":
       return getRecentRunMetaData(body,target);
       break;
+    case "APITestSuiteHistoryTable":
+      return getAPITestSuiteHistoryTable(body,target);
+      break;
+    case "APITestCaseHistory":
+      return getAPITestCaseHistoryTable(body,target);
+      break;
+     case "APITestSteps":
+      return getAPITestSteps(body,target);
+      break; 
 
 	}
 }
@@ -1532,10 +1535,10 @@ function getAPITestSuiteHistory(body,target){
         if(filter.key=="Tags"){
           //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
           fkey=`labels.value`;
-          foperator=(filter.operator=='!='?'$ne':'$eq');
+          foperator=(filter.operator=='!='?'$not':'$regex');
           var obj={};
           var opobj={};
-          opobj[foperator]=filter.value;
+          opobj[foperator]=`${filter.value}.*`;
           obj[fkey]=opobj
           filters.push(obj);
         }
@@ -1572,8 +1575,8 @@ function getAPITestSuiteHistory(body,target){
             if (err) throw err;
             // result = data;
             var c = 0;
-            var pass = {"target": "APISuitePassHistory"};
-            var fail = {"target": "APISuiteFailHistory"};
+            var pass = {"target": "APIPassSuiteHistory"};
+            var fail = {"target": "APIFailSuiteHistory"};
             var pass_datapoints = [];
             var fail_datapoints = [];
             var mySuite={};
@@ -1600,13 +1603,19 @@ function getAPITestSuiteHistory(body,target){
 
                 
             });
+            var passCount=0;
+            var failCount=0;
             Object.keys(myPassTests).forEach(function(pass){
-
+                passCount+=myPassTests[pass]
             })
-            console.log(myPassTests);
-            console.log(myFailTests);
-            pass['datapoints'] = pass_datapoints;
-            fail['datapoints'] = fail_datapoints;
+            Object.keys(myFailTests).forEach(function(fail){
+                failCount+=myFailTests[fail]
+            })
+
+            pass_datapoints.push(passCount,Math.floor(new Date(Date.now())));
+            fail_datapoints.push(failCount,Math.floor(new Date(Date.now())));
+            pass['datapoints'] = [pass_datapoints];
+            fail['datapoints'] = [fail_datapoints];
             // pass['datapoints'] = [];
             // fail['datapoints'] = [];
             // console.log("records count: "+c);
@@ -1615,13 +1624,272 @@ function getAPITestSuiteHistory(body,target){
             
             // return featuresData;
             
-            if(target=="APISuitePassHistory"){
+            if(target=="APIPassSuiteHistory"){
               resolve(featuresData[0]);
              }
              else{
               resolve(featuresData[1]);
              }
         });
+    });
+  });
+    
+}
+function getAPITestSuiteHistoryTable(body,target){
+    return new Promise(function(resolve,reject){
+    var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500;
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`labels.value`;
+          foperator=(filter.operator=='!='?'$not':'$regex');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=`${filter.value}.*`;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Count"){
+
+            limit=parseInt(filter.value);
+            console.log(limit)
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+     
+     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(api_collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
+            if (err) throw err;
+            // result = data;
+            var c = 0;
+            
+            var pass_datapoints = [];
+            var fail_datapoints = [];
+            
+            var myTests={}; 
+            data.forEach(function(record){
+                var mydata=[0,0,0];
+                if(myTests[record.name]==undefined){
+                  
+                  myTests[record.name]=mydata;
+                }
+                
+                if(record.status==="passed"){
+                  if(myTests[record.name]!=undefined){
+                      myTests[record.name][0]+=1; 
+                  }
+                  else{
+                      
+                      myTests[record.name][0]=1;   
+                  }
+                }
+                else
+                {
+                  if(myTests[record.name]!=undefined){
+                      myTests[record.name][1]+=1; 
+                  }
+                  else{
+                      
+                      myTests[record.name][1]=1; 
+                  }
+                }
+                myTests[record.name][2]=record.stop-record.start;
+                
+            });
+            var passCount=0;
+            var failCount=0;
+            var datapoints=[]
+            Object.keys(myTests).forEach(function(me){
+                var medata=[];
+                medata.push(me)
+                medata.push(myTests[me][0],myTests[me][1],myTests[me][2])
+                datapoints.push(medata)
+            })
+            
+            
+            var table =
+        {
+          columns: [{text: 'Test Name', type: 'string'}, {text: 'Passed', type: 'number'},{text: 'Failed', type: 'number'},{text: 'Recent Run Duration', type: 'number'}],
+          rows: datapoints,
+          "type":"table"
+        };
+        console.log(table);
+            resolve(table); 
+        });
+        
+    });
+  });
+    
+}
+
+function getAPITestCaseHistory(body,target){
+    return new Promise(function(resolve,reject){
+    var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500;
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`name`;
+          foperator=(filter.operator=='!='?'$not':'$regex');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=`${filter.value}.*`;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Count"){
+
+            limit=parseInt(filter.value);
+            console.log(limit)
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+     
+     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(api_collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
+            if (err) throw err;
+            // result = data;
+            var c = 0;
+            
+            var datapoints = [];
+            
+            data.forEach(function(record){
+                datapoints.push([record._id,record.name,record.status,record.stop-record.start])
+                
+            });
+           
+            
+            var table =
+            {
+              columns: [{text: 'RunID', type: 'string'},{text: 'Test Name', type: 'string'}, {text: 'Status', type: 'number'},{text: 'Run Duration', type: 'number'}],
+              rows: datapoints,
+              "type":"table"
+            };
+        console.log(table);
+            resolve(table); 
+        });
+        
+    });
+  });
+    
+}
+
+function getAPITestSteps(body,target){
+    return new Promise(function(resolve,reject){
+    var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500;
+    id=body.adhocFilters[0].value;
+     
+     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(api_collection).find({_id:ObjectID(id)}).toArray(function(err, data){
+            if (err) throw err;
+            // result = data;
+            var c = 0;
+            
+            var datapoints = [];
+            
+            data.forEach(function(record){
+                
+                record.steps.forEach(function(step){
+                    stepData=[];
+                    stepData.push(step.name);
+                    if(step.status==="passed"){
+                      stepData.push(1);
+                    }
+                    else{
+                      stepData.push(0);
+                    }
+                    stepData.push(step.stop-step.start);
+                    //Get the request and response to display
+                    if(step.parameters[0].value.indexOf(" Request ")!=-1){
+                      request=step.parameters[0].value.split("---------------- Request ---------------------------")[1].split("---------------- Response --------------------------")[0];
+                      stepData.push(request);
+                      response=step.parameters[0].value.split("---------------- Response --------------------------")[1]
+                      stepData.push(response);
+                    }
+                    else{
+                      stepData.push("");
+                      stepData.push("");
+                    }
+                    
+                    datapoints.push(stepData);
+                })
+                
+                
+                
+            });
+           
+            console.log(stepData)
+            var table =
+            {
+              columns: [{text: 'Step Name', type: 'string'}, {text: 'Status', type: 'number'},{text: 'Duration', type: 'number'},{text: 'Request', type: 'string'},{text: 'Response', type: 'string'}],
+              rows: datapoints,
+              "type":"table"
+            };
+        console.log(table);
+            resolve(table); 
+        });
+        
     });
   });
     
