@@ -214,7 +214,7 @@ async function getData(body,target){
       return getAPITestSuiteHistoryTable(body,target);
       break;
     case "APITestCaseHistory":
-      return getAPITestCaseHistoryTable(body,target);
+      return getAPITestCaseHistory(body,target);
       break;
      case "APITestSteps":
       return getAPITestSteps(body,target);
