@@ -224,7 +224,7 @@ async function getData(body,target){
 }
 
 
-function getFailuresTable(body,target){
+function getFailuresTable1(body,target){
 
   return new Promise(function(resolve,reject){
     
@@ -232,7 +232,7 @@ function getFailuresTable(body,target){
      MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
-        var filter = [{$group:{_id:"$result.elements.steps.result.error_message","metadata":{"$push":"$metadata"},"tags":{"$push":"$result.tags.name"},"feature":{"$push":"$result.uri"}}},{"$unwind":"$_id"},{"$unwind":"$_id"},{"$unwind":"$metadata"},{"$unwind":"$tags"},{"$unwind":"$tags"},{"$unwind":"$feature"},{"$unwind":"$feature"},{"$limit":100}]
+        var filter = [{$group:{_id:"$result.elements.steps.result.error_message","runId":{"$push":"$_id"},"metadata":{"$push":"$metadata"},"tags":{"$push":"$result.tags.name"},"feature":{"$push":"$result.uri"}}},{"$unwind":"$_id"},{"$unwind":"$_id"},{"$unwind":"$metadata"},{"$unwind":"$tags"},{"$unwind":"$tags"},{"$unwind":"$feature"},{"$unwind":"$feature"},{"$limit":100}]
         
         dbo.collection(collection).aggregate(filter).toArray(function(err, data){
             if (err) throw err;
@@ -244,8 +244,9 @@ function getFailuresTable(body,target){
             data.forEach(function(record){
                 var run_datapoints = [];
               	if(record._id[0]!=null){
+              		run_datapoints.push(record.runId);
               		run_datapoints.push(record.feature);
-	            	run_datapoints.push(record._id[0].slice(0,150));
+	            	run_datapoints.push(record._id[0].slice(30,150));
 	            	run_datapoints.push(record.metadata.driverType);
 	            	run_datapoints.push(record.tags.join(","));
 	            	datapoints.push(run_datapoints);
@@ -254,17 +255,17 @@ function getFailuresTable(body,target){
           		
             });
 
-            datapoints = _.uniqBy(datapoints,function(e){
+            /*datapoints = _.uniqBy(datapoints,function(e){
             	return e[1];
-            })
-            console.log(datapoints);
+            })*/
+            
             var table =
             {
-              columns: [{text: 'Feature', type: 'string'},{text: 'Error', type: 'string'}, {text: 'Driver', type: 'string'}, {text: 'Tags', type: 'string'}],
+              columns: [{text: 'RunID', type: 'string'},{text: 'Feature', type: 'string'},{text: 'Error', type: 'string'}, {text: 'Driver', type: 'string'}, {text: 'Tags', type: 'string'}],
               rows: datapoints,
               "type":"table"
             };
-            console.log(table);
+            
             resolve(table);
           //resolve(featuresData);
         });
@@ -701,6 +702,8 @@ function getRunData(body,target){
     
 }
 
+
+
 function getRecentRunMetaData(body,target){
 
     // format
@@ -905,6 +908,139 @@ function getRecentFeaturesRunTable(body,target){
             var table =
         {
           columns: [{text: 'RunID', type: 'string'},{text: 'Feature', type: 'string'}, {text: 'Description', type: 'string'},{text: 'Status', type: 'number'}, {text: 'Duration', type: 'number'}],
+          rows: datapoints,
+          "type":"table"
+        };
+        
+            resolve(table);
+        });
+    });
+    });
+}
+
+function getFailuresTable(body,target){
+
+    // format
+    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
+    // ["efg feature name","Fail",30]]}
+    return new Promise(function(resolve, reject){
+    var featuresData = [];
+    var filters=[];
+    var tags=[];
+    var limit=500
+
+    filters.push({"result.elements.steps.result.status":{"$eq":"failed"}})
+     body.adhocFilters.forEach(function(filter){
+        
+        if(filter.key=="Tags"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.tags.name`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+          tags.push(filter.value);
+        }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.steps.result.status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Count"){
+            limit=parseInt(filter.value)+1;
+            
+        }
+        else{
+          fkey=`metadata.${filter.key}`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+
+     });
+    MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
+        if (err) throw err;
+        var dbo = db.db();
+        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
+        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
+        filter={}
+        if(filters.length==0){
+          filter={_id:{"$lt":toTime,"$gt":fromTime}}
+        }
+        else{
+          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
+        }
+        dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
+            // console.log(data);
+            var mostRecentRecord = {"target": "FeatureRun"};
+            var datapoints = [];
+            data.forEach(function(record){
+                
+                record.result.forEach(function(feature){
+                    var featureData = []
+                    var duration = 0;
+                    var feature_status = "passed";
+                    var error="";
+                    var message="";
+                    featureData.push(record._id);
+	                featureData.push(feature.uri);
+	                featureData.push(feature.name);
+                    feature.elements.forEach(function(element){
+                        element.steps.forEach(function(step){
+                            duration = duration + step.result.duration/1000000000.0;
+                            if(step.result.status != "passed"){
+                                feature_status = "failed"
+                                
+                                if(step.result.status==="failed" && step.result.error_message.indexOf("APP:")!=-1){
+                                  error=(step.result.error_message.substring(step.result.error_message.indexOf("APP:")+4,step.result.error_message.indexOf(",")));
+                                  message=(step.result.error_message.substring(0,step.result.error_message.indexOf("APP:")));
+                                  
+                                }
+                                else if(step.result.status==="failed" && step.result.error_message.indexOf("APP:")===-1){
+                                	message=step.result.error_message;
+                                }
+
+                                
+                            }else{
+                                feature_status = "passed"
+                            }
+                        });
+                    });
+                    if(feature_status != "passed"){
+                        featureData.push(error);
+                        featureData.push(message);
+                        featureData.push(0);
+                        featureData.push(duration);
+                        //Push only failed data
+                    	datapoints.push(featureData);
+                    }else{
+                        featureData.push(1);
+                        
+                    }
+                    
+                    
+                });
+                
+            });
+
+           datapoints=_.uniqBy(datapoints,function(e){
+            	return e[3];
+            })
+            mostRecentRecord['datapoints'] = datapoints;
+            
+            var table =
+        {
+          columns: [{text: 'RunID', type: 'string'},{text: 'Feature', type: 'string'}, {text: 'Description', type: 'string'},{text: 'Failed App', type: 'string'}, {text: 'Reason', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Duration', type: 'number'}],
           rows: datapoints,
           "type":"table"
         };
