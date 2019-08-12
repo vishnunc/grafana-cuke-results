@@ -156,21 +156,21 @@ async function getData(body,target){
 		case "FailHistory":
 			return getFeaturesData(body,target);
 			break;
-    case "RunPassHistory":
-      return getSummary(body,target);
-      break;
-    case "RunFailHistory":
-      return getSummary(body,target);
-      break;
+		case "RunPassHistory":
+			return getSummary(body,target);
+			break;
+		case "RunFailHistory":
+			return getSummary(body,target);
+			break;
 		case "FeaturesRun":
 			return getFeaturesRunTable(body,target);
 			break;
-    case "RecentFeaturesRun":
-      return getRecentFeaturesRunTable(body,target);
-      break;
-    case "Features":
-      return getFeaturesTable(body,target);
-      break;
+		case "RecentFeaturesRun":
+			return getRecentFeaturesRunTable(body,target);
+			break;
+		case "Features":
+			return getFeaturesTable(body,target);
+			break;
 		case "ScenariosRun":
 			return getScenariosRunTable(body,target);
 			break;
@@ -180,45 +180,45 @@ async function getData(body,target){
 		case "StepDetails":
 			return getStepDetailsTable(body,target);
 			break;
-    case "MetaData":
-      return getMetaData(body,target);
-      break;
-    case "TestData":
-      return getTestData(body,target);
-      break;
-    case "Tags":
-      return getTags(body,target);
-      break;
-    case "Runs":
-      return getRunData(body,target);
-      break;
-    case "ReportTable":
-      return getReportTable(body,target);
-      break;
-    case "FeaturesBrowserSummaryTable":
-      return getFeaturesBrowserSummaryTable(body,target);
-      break;
-    case "FailureTable":
-      return getFailuresTable(body,target);
-      break;
-    case "APIFailSuiteHistory":
-      return getAPITestSuiteHistory(body,target);
-      break;
-    case "APIPassSuiteHistory":
-      return getAPITestSuiteHistory(body,target);
-      break;
-    case "RecentRunMetaData":
-      return getRecentRunMetaData(body,target);
-      break;
-    case "APITestSuiteHistoryTable":
-      return getAPITestSuiteHistoryTable(body,target);
-      break;
-    case "APITestCaseHistory":
-      return getAPITestCaseHistory(body,target);
-      break;
-     case "APITestSteps":
-      return getAPITestSteps(body,target);
-      break; 
+		case "MetaData":
+			return getMetaData(body,target);
+			break;
+		case "TestData":
+			return getTestData(body,target);
+			break;
+		case "Tags":
+			return getTags(body,target);
+			break;
+		case "Runs":
+			return getRunData(body,target);
+			break;
+		case "ReportTable":
+			return getReportTable(body,target);
+			break;
+		case "FeaturesBrowserSummaryTable":
+			return getFeaturesBrowserSummaryTable(body,target);
+			break;
+		case "FailureTable":
+			return getFailuresTable(body,target);
+			break;
+		case "APIFailSuiteHistory":
+			return getAPITestSuiteHistory(body,target);
+			break;
+		case "APIPassSuiteHistory":
+			return getAPITestSuiteHistory(body,target);
+			break;
+		case "RecentRunMetaData":
+			return getRecentRunMetaData(body,target);
+			break;
+		case "APITestSuiteHistoryTable":
+			return getAPITestSuiteHistoryTable(body,target);
+			break;
+		case "APITestCaseHistory":
+			return getAPITestCaseHistory(body,target);
+			break;
+		case "APITestSteps":
+			return getAPITestSteps(body,target);
+			break; 
 
 	}
 }
@@ -227,126 +227,41 @@ async function getData(body,target){
 function getFailuresTable(body,target){
 
   return new Promise(function(resolve,reject){
-    var featuresData = [];
-    var filters=[];
-    var tags=[];
-    var limit=500
-     body.adhocFilters.forEach(function(filter){
-        
-        if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
-          fkey=`result.elements.tags.name`;
-          foperator=(filter.operator=='!='?'$ne':'$eq');
-          var obj={};
-          var opobj={};
-          opobj[foperator]=filter.value;
-          obj[fkey]=opobj
-          filters.push(obj);
-          tags.push(filter.value);
-        }
-        else if(filter.key=="Count"){
-            limit=parseInt(filter.value)+1;
-            console.log(limit)
-        }
-        else{
-          fkey=`metadata.${filter.key}`;
-          foperator=(filter.operator=='!='?'$ne':'$eq');
-          var obj={};
-          var opobj={};
-          opobj[foperator]=filter.value;
-          obj[fkey]=opobj
-          filters.push(obj);
-        }
-
-     });
+    
      
      MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
-        var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
-        var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
-        filter={}
-        if(filters.length==0){
-          filter={_id:{"$lt":toTime,"$gt":fromTime}}
-        }
-        else{
-          filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
-        }
-        dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
+        var filter = [{$group:{_id:"$result.elements.steps.result.error_message","metadata":{"$push":"$metadata"},"tags":{"$push":"$result.tags.name"},"feature":{"$push":"$result.uri"}}},{"$unwind":"$_id"},{"$unwind":"$_id"},{"$unwind":"$metadata"},{"$unwind":"$tags"},{"$unwind":"$tags"},{"$unwind":"$feature"},{"$unwind":"$feature"},{"$limit":100}]
+        
+        dbo.collection(collection).aggregate(filter).toArray(function(err, data){
             if (err) throw err;
-            // result = data;
-            var c = 0;
-            var run = {"target": "RunHistory"};
-            //var fail = {"target": "FailHistory"};
-            var pass_datapoints = [];
-            //var fail_datapoints = [];
-            var run_datapoints = [];
-            data.forEach(function(record){
-                var duration = 0;
-                var passCount = 0;
-                var failCount = 0;
-                var filterFail=false;
-                var error=[];
-                var reason="";
-                record.result.forEach(function(feature){
-                    // console.log(feature, c)
-                    /*filterFail=false;
-                    console.log(filterFail);
-                    feature.tags.forEach(function(tag){
-                      tags.forEach(function(fil){
-                        if(!eval(fil)){
-                        filterFail=true;
-                        console.log('here')
-                      }
-                      }) 
-                      
-                    })
-                    
-                    if(filterFail){
-                      return;
-                    }*/
-                    var feature_status = "passed"
-                    feature.elements.forEach(function(element){
-                        element.steps.forEach(function(step){
-                            duration = duration + step.result.duration;
-                            if(step.result.status != "passed"){
-                                feature_status = "failed";
-                                if(step.result.status=="failed" && step.result.error_message.indexOf("APP:")!=-1){
-                                  error.push(step.result.error_message.substring(step.result.error_message.indexOf("APP:")+4,step.result.error_message.indexOf(",")));
-                                  reason=step.result.error_message.substring(step.result.error_message.indexOf("ISSUE: APP ISSUE")+16,step.result.error_message.indexOf("ISSUE: APP ISSUE")+50)
-                                }
-                                
-                            }
-                        });
-                    });
-                    if(feature_status != "passed"){
-                        failCount += 1;
-                    }else{
-                        passCount += 1;
-                    } 
-                });
-                  
-                 if(filterFail){
-                      return;
-                  }
-                environment=[]
-                if(record.metadata!=null){
-                Object.keys(record.metadata).forEach(function(key){
-
-                    environment.push(key+' : '+record.metadata[key])
-
-                });
-                }
-                run_datapoints.push([record._id,tags.join("_").replace("@","")+"_"+new Date(record._id.getTimestamp()).toISOString().slice(0,10)+"_"+record.metadata.Environment+"_"+record.metadata.locale,failCount>0?0:1,error.join(","),reason])
-            });
-           
-            run['datapoints']=run_datapoints
-            featuresData.push(run);
             
+            var c = 0;
+            var run = {"target": "FailureTable"};
+            datapoints=[];
+            
+            data.forEach(function(record){
+                var run_datapoints = [];
+              	if(record._id[0]!=null){
+              		run_datapoints.push(record.feature);
+	            	run_datapoints.push(record._id[0].slice(0,150));
+	            	run_datapoints.push(record.metadata.driverType);
+	            	run_datapoints.push(record.tags.join(","));
+	            	datapoints.push(run_datapoints);
+              	}
+          		
+          		
+            });
+
+            datapoints = _.uniqBy(datapoints,function(e){
+            	return e[1];
+            })
+            console.log(datapoints);
             var table =
             {
-              columns: [{text: 'Run ID', type: 'string'},{text: 'Run Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Failed App', type: 'string'}, {text: 'Reason', type: 'string'}],
-              rows: run_datapoints,
+              columns: [{text: 'Feature', type: 'string'},{text: 'Error', type: 'string'}, {text: 'Driver', type: 'string'}, {text: 'Tags', type: 'string'}],
+              rows: datapoints,
               "type":"table"
             };
             console.log(table);
@@ -373,6 +288,16 @@ function getFeaturesData(body,target){
           var obj={};
           var opobj={};
           opobj[foperator]=filter.value;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.steps.result.status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
           obj[fkey]=opobj
           filters.push(obj);
         }
@@ -491,10 +416,21 @@ function getFeaturesBrowserSummaryTable(body,target){
           obj[fkey]=opobj
           filters.push(obj);
         }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.steps.result.status`;
+          
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
         else if(filter.key=="Count"){
 
             limit=parseInt(filter.value);
-            console.log(limit)
+            
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -630,7 +566,7 @@ function getFeaturesBrowserSummaryTable(body,target){
               rows: datapoints,
               "type":"table"
             };
-        console.log(table);
+        
             resolve(table);
         });
     });
@@ -656,9 +592,19 @@ function getRunData(body,target){
           filters.push(obj);
           tags.push(filter.value);
         }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.steps.result.status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
         else if(filter.key=="Count"){
             limit=parseInt(filter.value)+1;
-            console.log(limit)
+            
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -699,23 +645,9 @@ function getRunData(body,target){
                 var failCount = 0;
                 var filterFail=false;
                 var error=[];
+                var message=[];
                 record.result.forEach(function(feature){
-                    // console.log(feature, c)
-                    /*filterFail=false;
-                    console.log(filterFail);
-                    feature.tags.forEach(function(tag){
-                      tags.forEach(function(fil){
-                        if(!eval(fil)){
-                        filterFail=true;
-                        console.log('here')
-                      }
-                      }) 
-                      
-                    })
                     
-                    if(filterFail){
-                      return;
-                    }*/
                     var feature_status = "passed"
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
@@ -724,6 +656,7 @@ function getRunData(body,target){
                                 feature_status = "failed";
                                 if(step.result.status=="failed" && step.result.error_message.indexOf("APP:")!=-1){
                                   error.push(step.result.error_message.substring(step.result.error_message.indexOf("APP:")+4,step.result.error_message.indexOf(",")));
+                                  message.push(step.result.error_message.substring(0,step.result.error_message.indexOf("APP:")));
                                 }
                                 
                             }
@@ -747,25 +680,19 @@ function getRunData(body,target){
 
                 });
                 }
-                run_datapoints.push([record._id,tags[0].replace("@","")+"_"+new Date(record._id.getTimestamp()).toISOString().slice(0,16).replace(":","")+"_"+record.metadata.Environment+"_"+record.metadata.locale,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),failCount,passCount,error.join(","),record.metadata.Environment,(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobileBrowser)])
+                run_datapoints.push([record._id,tags[0].replace("@","")+"_"+new Date(record._id.getTimestamp()).toISOString().slice(0,16).replace(":","")+"_"+record.metadata.Environment+"_"+record.metadata.locale,failCount>0?0:1,Math.floor(new Date(record._id.getTimestamp()-duration/1000000) ),Math.floor(new Date(record._id.getTimestamp()) ),Math.floor(new Date(record._id.getTimestamp())-new Date(record._id.getTimestamp()-duration/1000000) ),failCount,passCount,error.join(","),message.join(","),record.metadata.Environment,(record.metadata.Browser!=null?record.metadata.Browser:record.metadata.mobilePlatformName)])
             });
-           // pass['datapoints'] = pass_datapoints;
-            //fail['datapoints'] = fail_datapoints;
-            // pass['datapoints'] = [];
-            // fail['datapoints'] = [];
-            // console.log("records count: "+c);
-            //featuresData.push(pass);
-            //featuresData.push(fail);
+           
             run['datapoints']=run_datapoints
             featuresData.push(run);
             // return featuresData;
           var table =
         {
-          columns: [{text: 'Run ID', type: 'string'},{text: 'Run Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Time Started', type: 'number'},{text: 'Time Ended', type: 'number'},{text: 'Total Time', type: 'number'},{text: 'Failed', type:'string'},{text: 'Passed', type:'string'},{text: 'Failed App', type: 'string'},{text: 'Environment', type: 'string'},{text: 'Browser', type:'string'}],
+          columns: [{text: 'Run ID', type: 'string'},{text: 'Run Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Started', type: 'number'},{text: 'Ended', type: 'number'},{text: 'TotalTime', type: 'number'},{text: 'Failed', type:'string'},{text: 'Passed', type:'string'},{text: 'Failed App', type: 'string'},{text: 'Reason', type: 'string'},{text: 'Env', type: 'string'},{text: 'Browser', type:'string'}],
           rows: run_datapoints,
           "type":"table"
         };
-        console.log(table);
+        
             resolve(table);
           //resolve(featuresData);
         });
@@ -797,9 +724,19 @@ function getRecentRunMetaData(body,target){
           filters.push(obj);
           tags.push(filter.value);
         }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.steps.result.status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
         else if(filter.key=="Count"){
             limit=parseInt(filter.value)+1;
-            console.log(limit)
+            
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -862,7 +799,7 @@ function getRecentRunMetaData(body,target){
           rows: [datapoints],
           "type":"table"
         };
-        console.log(table);
+        
             resolve(table);
         });
     });
@@ -892,9 +829,19 @@ function getRecentFeaturesRunTable(body,target){
           filters.push(obj);
           tags.push(filter.value);
         }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.steps.result.status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
         else if(filter.key=="Count"){
             limit=parseInt(filter.value)+1;
-            console.log(limit)
+            
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -961,7 +908,7 @@ function getRecentFeaturesRunTable(body,target){
           rows: datapoints,
           "type":"table"
         };
-        console.log(table);
+        
             resolve(table);
         });
     });
@@ -985,10 +932,20 @@ function getSummary(body,target){
           obj[fkey]=opobj
           filters.push(obj);
         }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.steps.result.status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
         else if(filter.key=="Count"){
 
             limit=parseInt(filter.value);
-            console.log(limit)
+            
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -1043,8 +1000,7 @@ function getSummary(body,target){
                         passCount += 1;
                     } 
                 });
-                console.log(failCount)
-                console.log(passCount)
+                
                 if(failCount>0){
                   failCount=1
                   passCount=0
@@ -1059,9 +1015,7 @@ function getSummary(body,target){
             });
             pass['datapoints'] = pass_datapoints;
             fail['datapoints'] = fail_datapoints;
-            // pass['datapoints'] = [];
-            // fail['datapoints'] = [];
-            // console.log("records count: "+c);
+            
             featuresData.push(pass);
             featuresData.push(fail);
             
@@ -1131,7 +1085,7 @@ function getFeaturesRunTable(body,target){
 			    rows: datapoints,
 			    "type":"table"
 			  };
-			  console.log(table);
+			  
             resolve(table);
         });
     });
@@ -1158,10 +1112,20 @@ function getFeaturesTable(body,target){
           obj[fkey]=opobj
           filters.push(obj);
         }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`result.elements.steps.result.status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
         else if(filter.key=="Count"){
 
             limit=parseInt(filter.value);
-            console.log(limit)
+            
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -1228,7 +1192,7 @@ function getFeaturesTable(body,target){
           rows: datapoints,
           "type":"table"
         };
-        console.log(table);
+        
             resolve(table);
         });
     });
@@ -1272,7 +1236,7 @@ function getMetaData(body,target){
           rows: [datapoints],
           "type":"table"
         };
-        console.log(table);
+        
             resolve(table);
         });
     });
@@ -1368,7 +1332,7 @@ function getTestData(body,target){
           rows: datapoints,
           "type":"table"
         };
-        console.log(table);
+        
             resolve(table);
         });
     });
@@ -1390,7 +1354,7 @@ function getScenariosRunTable(body,target){
 
                 var scenarois = {"target": "ScenariosRun"};
                 var datapoints = [];
-                console.log(data);
+                
                 data.forEach(record => {
                     // console.log(record);
                     record.result.forEach(function(feature){
@@ -1419,15 +1383,13 @@ function getScenariosRunTable(body,target){
                                 }
                                 sceneData.push(duration);
                                 datapoints.push(sceneData);
-                                console.log(datapoints);
+                                
                             });
                        }
-                            console.log(datapoints);
-                        console.log(datapoints);
+                            
                     });
-                console.log(datapoints);
+                
                 });
-                console.log(datapoints);
               	scenarois['datapoints'] = datapoints;
                 var table =
 			  {
@@ -1435,7 +1397,7 @@ function getScenariosRunTable(body,target){
 			    rows: datapoints,
 			    "type":"table"
 			  };
-			  console.log(table);
+			  
             resolve(table);  
             });
         });
@@ -1448,7 +1410,7 @@ function getStepsRunTable(body,target){
     //sceneName="as-a-user-once-i-add-items-to-cart-i-should-be-able-to-continue-shopping;authorized-user-should-be-able-to-continue-shopping;;2";
     id=body.adhocFilters[0].value;
     sceneName=body.adhocFilters[1].value;
-    console.log(sceneName);
+    
     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
@@ -1479,7 +1441,7 @@ function getStepsRunTable(body,target){
                             datapoints.push(before_steps);
                         element.steps.forEach(function(step){
                             var eachStep = [];
-                             console.log(step);
+                             
                             eachStep.push(step.name);
                             if(step.result.status === "passed"){
                                 eachStep.push(1);
@@ -1518,7 +1480,7 @@ function getStepsRunTable(body,target){
 			    rows: datapoints,
 			    "type":"table"
 			  };
-			  console.log(table);
+			  
             resolve(table); 
         });
     });
@@ -1539,6 +1501,16 @@ function getAPITestSuiteHistory(body,target){
           var obj={};
           var opobj={};
           opobj[foperator]=`${filter.value}.*`;
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
           obj[fkey]=opobj
           filters.push(obj);
         }
@@ -1653,10 +1625,20 @@ function getAPITestSuiteHistoryTable(body,target){
           obj[fkey]=opobj
           filters.push(obj);
         }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
         else if(filter.key=="Count"){
 
             limit=parseInt(filter.value);
-            console.log(limit)
+            
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -1739,7 +1721,7 @@ function getAPITestSuiteHistoryTable(body,target){
           rows: datapoints,
           "type":"table"
         };
-        console.log(table);
+        
             resolve(table); 
         });
         
@@ -1766,6 +1748,16 @@ function getAPITestCaseHistory(body,target){
           obj[fkey]=opobj
           filters.push(obj);
         }
+        else if(filter.key=="Status"){
+          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          fkey=`status`;
+          foperator=(filter.operator=='!='?'$ne':'$eq');
+          var obj={};
+          var opobj={};
+          opobj[foperator]=filter.value.toLowerCase();
+          obj[fkey]=opobj
+          filters.push(obj);
+        }
         if(filter.key=="TestName"){
           //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
           fkey=`name`;
@@ -1779,7 +1771,7 @@ function getAPITestCaseHistory(body,target){
         else if(filter.key=="Count"){
 
             limit=parseInt(filter.value);
-            console.log(limit)
+            
         }
         else{
           fkey=`metadata.${filter.key}`;
@@ -1828,7 +1820,7 @@ function getAPITestCaseHistory(body,target){
               rows: datapoints,
               "type":"table"
             };
-        console.log(table);
+        
             resolve(table); 
         });
         
@@ -1898,14 +1890,14 @@ function getAPITestSteps(body,target){
                 
             });
            
-            console.log(stepData)
+            
             var table =
             {
               columns: [{text: 'Step Name', type: 'string'}, {text: 'Status', type: 'number'},{text: 'Duration', type: 'number'},{text: 'Request', type: 'string'},{text: 'Response', type: 'string'},{text: 'Messages', type: 'string'}],
               rows: datapoints,
               "type":"table"
             };
-        console.log(table);
+        
             resolve(table); 
         });
         
@@ -1920,7 +1912,7 @@ function getStepDetailsTable(body,target){
     //sceneName="as-a-user-once-i-add-items-to-cart-i-should-be-able-to-continue-shopping;authorized-user-should-be-able-to-continue-shopping;;2";
     id=body.adhocFilters[0].value
     sceneName=body.adhocFilters[1].value
-    console.log(sceneName);
+    
     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
@@ -1934,7 +1926,7 @@ function getStepDetailsTable(body,target){
             data[0].result.forEach(function(feature) {
                 
                 feature.elements.forEach(function(element){
-                     console.log(element);
+                     
                     if(element.id === sceneName){
                          
                             var after_steps = [];
@@ -1971,7 +1963,7 @@ function getStepDetailsTable(body,target){
 			    rows: datapoints[0],
 			    "type":"table"
 			  };
-			  console.log(table);
+			  
             resolve(table); 
         });
     });
@@ -1979,17 +1971,6 @@ function getStepDetailsTable(body,target){
 }
 app.all('/tag[\-]keys', function(req, res) {
   setCORSHeaders(res);
-  
-  /*let tsResult = [];
-  tsResult.push(getFilterTags());
-  Promise.all(tsResult).
-  then((result)=>{
-    //console.log(result)
-
-    res.json(_.uniqBy(result[0].columns,'text'));
-    res.end();
-  });*/
-
   res.json(filtertags);
   res.end();
 });
@@ -2057,7 +2038,7 @@ function getFilterValues(filterkey){
         var dbo = db.db();
         
         //.limit(1).sort({$natural:-1})
-        dbo.collection(collection).find({}).sort({$natural:-1}).limit(100).toArray(function(err, data){
+        dbo.collection(collection).find({}).sort({$natural:-1}).limit(1000).toArray(function(err, data){
             // console.log(data);
             
             var colpoints =[];
