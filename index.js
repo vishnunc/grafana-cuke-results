@@ -1003,11 +1003,22 @@ function getFailuresTable(body,target){
                                 
                                 if(step.result.status==="failed" && step.result.error_message.indexOf("APP:")!=-1){
                                   error=(step.result.error_message.substring(step.result.error_message.indexOf("APP:")+4,step.result.error_message.indexOf(",")));
-                                  message=(step.result.error_message.substring(0,step.result.error_message.indexOf("APP:")));
+                                  
+
+                                  if(step.result.error_message.indexOf("ERROR [1] Iteration 1 failed")!=-1){
+                                  		var eIndex=step.result.error_message.indexOf("ERROR [1] Iteration 1 failed")
+                                  		message=step.result.error_message.substring(eIndex,eIndex+150);
+                                  }
+                                  else{
+                                  		var index=step.result.error_message.indexOf("APP:")+8
+                                  		message=step.result.error_message.substring(index,index+150);
+                                  }
+                                  
                                   
                                 }
-                                else if(step.result.status==="failed" && step.result.error_message.indexOf("APP:")===-1){
-                                	message=step.result.error_message;
+                                else if(step.result.status==="failed" && step.result.error_message.indexOf("APP:")===-1 ){
+                                	var eIndex=step.result.error_message.indexOf(":")
+                                	message=step.result.error_message.slice(eIndex,eIndex+150);
                                 }
 
                                 
