@@ -5,9 +5,6 @@ var mongo = require('mongodb');
 var ObjectID = require('bson-objectid');
 var MongoClient = require('mongodb').MongoClient;
 var filtertags=require('./filtertags');
-//var url = "mongodb://localhost:27017/cuke";
-//var db="cuke";
-//var collection="debug";
 
 var url = "mongodb://10.1.70.74:27017/Automation_Results";
 var collection="Regression_Results";
@@ -17,43 +14,8 @@ var app = express();
 var fs = require('fs'),
     xml2js = require('xml2js');
  
-/*var parser = new xml2js.Parser();
-fs.readFile('/Users/vishnu/Downloads/EBS-BD_GetOrderInfo/EBS-BD-GetOrderInfo-readyapi-project.xml', function(err, data) {
-    parser.parseString(data, function (err, result) {
-        console.dir(result['con:soapui-project']['con:testSuite'][0]);
-        console.log('Done');
-    });
-});*/
 
 app.use(bodyParser.json());
-
-
-
-var annotation = {
-  name : "annotation name",
-  enabled: true,
-  datasource: "generic datasource",
-  showLine: true,
-}
-
-var annotations = [
-  { annotation: annotation, "title": "dd", "time": 1450754160000, text: "teeext", tags: "taaags" },
-  { annotation: annotation, "title": "ee", "time": 1450754160000, text: "teeext", tags: "taaags" },
-  { annotation: annotation, "title": "ff ", "time": 1450754160000, text: "teeext", tags: "taaags" }
-];
-
-var tagKeys = [
-  {"type":"string","text":"Country"},
-  {"type":"string","text":"Country"},
-  {"type":"string","text":"Country"}
-];
-
-var countryTagValues = [
-  {'text': 'SE'},
-  {'text': 'DE'},
-  {'text': 'US'},
-  {'text': 'US'}
-];
 
 
 
@@ -103,12 +65,7 @@ app.all('/annotations', function(req, res) {
   res.json(annotations);
   res.end();
 });
-/*app.all('/img',function(req,res){
-	setCORSHeaders(res);
-	var binaryBuff = Buffer.from("R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=",'base64');
-	res.write(binaryBuff,'binary');
-    res.end(null, 'binary');
-});*/
+
 app.all('/query', function(req, res, next){
   setCORSHeaders(res);
   console.log(req.url);
@@ -118,13 +75,6 @@ app.all('/query', function(req, res, next){
   req.body.targets.forEach(function(target){
 
       tsResult.push(getData(req.body,target.target));
-  		/*if(req.body.adhocFilters.length>0){
-  			tsResult.push(getData(req.body,target.target));
-  			console.log("in here");
-  		}
-  		else{
-  			tsResult.push(getData(null,target.target));
-  		}*/
   		
   });
   Promise.all(tsResult).
@@ -132,18 +82,7 @@ app.all('/query', function(req, res, next){
   	res.json(result);
   	res.end();
   });
-  /*_.each(req.body.targets, async function(target) {
-  	console.log(target.target);
-  	var data = await getData(target.type,target.target);
-  	
-  	tsResult.push(data);
-    
-  });
-  Promise.all(tsResult).then((result) => {
-  	console.log(tsResult);
-  	res.json(result);
-  	res.end();
-  });*/
+  
   
 });
 
@@ -255,10 +194,7 @@ function getFailuresTable1(body,target){
           		
             });
 
-            /*datapoints = _.uniqBy(datapoints,function(e){
-            	return e[1];
-            })*/
-            
+           
             var table =
             {
               columns: [{text: 'RunID', type: 'string'},{text: 'Feature', type: 'string'},{text: 'Error', type: 'string'}, {text: 'Driver', type: 'string'}, {text: 'Tags', type: 'string'}],
@@ -267,7 +203,7 @@ function getFailuresTable1(body,target){
             };
             
             resolve(table);
-          //resolve(featuresData);
+          
         });
     });
   });
@@ -283,7 +219,7 @@ function getFeaturesData(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.tags.name`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -293,7 +229,7 @@ function getFeaturesData(body,target){
           filters.push(obj);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.steps.result.status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -344,19 +280,7 @@ function getFeaturesData(body,target){
                 var passCount = 0;
                 var failCount = 0;
                 record.result.forEach(function(feature){
-                    // console.log(feature, c)
-                    /*var filterFail=false;
-                    feature.tags.forEach(function(tag){
-                      tags.forEach(function(fil){
-                        if(!eval(fil)){
-                        filterFail=true;
-                      }
-                      }) 
-                      
-                    })
-                    if(filterFail){
-                      return;
-                    }*/
+                    
                     var feature_status = "passed"
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
@@ -377,13 +301,11 @@ function getFeaturesData(body,target){
             });
             pass['datapoints'] = _.reverse(pass_datapoints);
             fail['datapoints'] = _.reverse(fail_datapoints);
-            // pass['datapoints'] = [];
-            // fail['datapoints'] = [];
-            // console.log("records count: "+c);
+            
             featuresData.push(pass);
             featuresData.push(fail);
             
-            // return featuresData;
+            
             if(target=="PassHistory"){
 		     	resolve(featuresData[0]);
 		     }
@@ -398,9 +320,7 @@ function getFeaturesData(body,target){
 
 function getFeaturesBrowserSummaryTable(body,target){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     var filters=[];
     var tags=[];
@@ -408,7 +328,7 @@ function getFeaturesBrowserSummaryTable(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.tags.name`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -418,7 +338,7 @@ function getFeaturesBrowserSummaryTable(body,target){
           filters.push(obj);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.steps.result.status`;
           
           foperator=(filter.operator=='!='?'$ne':'$eq');
@@ -457,9 +377,9 @@ function getFeaturesBrowserSummaryTable(body,target){
         else{
           filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
         }
-        //.limit(1).sort({$natural:-1})
+        
         dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
-            // console.log(data);
+            
             var mostRecentRecord = {"target": "FeaturesBrowserSummaryTable"};
             var datapoints = [];
             var recpoints = {};
@@ -481,7 +401,7 @@ function getFeaturesBrowserSummaryTable(body,target){
                     var iosBrowserFail=0;
                     var androidBrowserFail=0;
                     var feature_status = "passed";
-                    //featureData.push(feature.uri);
+                    
                     feature.elements.forEach(function(element){
                         element.steps.forEach(function(step){
                             
@@ -547,7 +467,7 @@ function getFeaturesBrowserSummaryTable(body,target){
                     }
                     else
                     {
-                      recpoints[feature.uri]=  recpoints[feature.uri].map(function(x, index){ //here x = a[index]
+                      recpoints[feature.uri]=  recpoints[feature.uri].map(function(x, index){ 
                        return featureData[index] + x 
                       });
  
@@ -583,7 +503,7 @@ function getRunData(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.tags.name`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -594,7 +514,7 @@ function getRunData(body,target){
           tags.push(filter.value);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.steps.result.status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -633,12 +553,12 @@ function getRunData(body,target){
         }
         dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             if (err) throw err;
-            // result = data;
+            
             var c = 0;
             var run = {"target": "RunHistory"};
-            //var fail = {"target": "FailHistory"};
+            
             var pass_datapoints = [];
-            //var fail_datapoints = [];
+            
             var run_datapoints = [];
             data.forEach(function(record){
                 var duration = 0;
@@ -686,7 +606,7 @@ function getRunData(body,target){
            
             run['datapoints']=run_datapoints
             featuresData.push(run);
-            // return featuresData;
+            
           var table =
         {
           columns: [{text: 'Run ID', type: 'string'},{text: 'Run Name', type: 'string'}, {text: 'Status', type: 'number'}, {text: 'Started', type: 'number'},{text: 'Ended', type: 'number'},{text: 'TotalTime', type: 'number'},{text: 'Failed', type:'string'},{text: 'Passed', type:'string'},{text: 'Failed App', type: 'string'},{text: 'Reason', type: 'string'},{text: 'Env', type: 'string'},{text: 'Browser', type:'string'}],
@@ -695,7 +615,7 @@ function getRunData(body,target){
         };
         
             resolve(table);
-          //resolve(featuresData);
+          
         });
     });
   });
@@ -706,9 +626,7 @@ function getRunData(body,target){
 
 function getRecentRunMetaData(body,target){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     var featuresData = [];
     var filters=[];
@@ -717,7 +635,7 @@ function getRecentRunMetaData(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.tags.name`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -728,7 +646,7 @@ function getRecentRunMetaData(body,target){
           tags.push(filter.value);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.steps.result.status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -811,9 +729,7 @@ function getRecentRunMetaData(body,target){
 
 function getRecentFeaturesRunTable(body,target){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     var featuresData = [];
     var filters=[];
@@ -822,7 +738,7 @@ function getRecentFeaturesRunTable(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.tags.name`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -833,7 +749,7 @@ function getRecentFeaturesRunTable(body,target){
           tags.push(filter.value);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.steps.result.status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -870,7 +786,7 @@ function getRecentFeaturesRunTable(body,target){
           filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
         }
         dbo.collection(collection).find(filter).sort({$natural:-1}).limit(1).toArray(function(err, data){
-            // console.log(data);
+            
             var mostRecentRecord = {"target": "FeatureRun"};
             var datapoints = [];
             data.forEach(function(record){
@@ -920,9 +836,7 @@ function getRecentFeaturesRunTable(body,target){
 
 function getFailuresTable(body,target){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     var featuresData = [];
     var filters=[];
@@ -933,7 +847,7 @@ function getFailuresTable(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.tags.name`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -944,7 +858,7 @@ function getFailuresTable(body,target){
           tags.push(filter.value);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.steps.result.status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -1070,7 +984,7 @@ function getSummary(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.tags.name`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -1080,7 +994,7 @@ function getSummary(body,target){
           filters.push(obj);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.steps.result.status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -1120,7 +1034,7 @@ function getSummary(body,target){
         }
         dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             if (err) throw err;
-            // result = data;
+            
             var c = 0;
             var pass = {"target": "RunPassHistory"};
             var fail = {"target": "RunFailHistory"};
@@ -1166,7 +1080,7 @@ function getSummary(body,target){
             featuresData.push(pass);
             featuresData.push(fail);
             
-            // return featuresData;
+            
             if(target=="RunPassHistory"){
           resolve(featuresData[0]);
          }
@@ -1181,18 +1095,16 @@ function getSummary(body,target){
 
 function getFeaturesRunTable(body,target){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     id=body.adhocFilters[0].value
     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
         
-        //.limit(1).sort({$natural:-1})
+        
         dbo.collection(collection).find({_id:ObjectID(id)}).toArray(function(err, data){
-            // console.log(data);
+            
             var mostRecentRecord = {"target": "FeatureRun"};
             var datapoints = [];
             data.forEach(function(record){
@@ -1240,9 +1152,7 @@ function getFeaturesRunTable(body,target){
 }
 function getFeaturesTable(body,target){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     var filters=[];
     var tags=[];
@@ -1250,7 +1160,7 @@ function getFeaturesTable(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.tags.name`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -1260,7 +1170,7 @@ function getFeaturesTable(body,target){
           filters.push(obj);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`result.elements.steps.result.status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -1298,9 +1208,9 @@ function getFeaturesTable(body,target){
         else{
           filter={_id:{"$lt":toTime,"$gt":fromTime},$and:filters}
         }
-        //.limit(1).sort({$natural:-1})
+        
         dbo.collection(collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
-            // console.log(data);
+            
             var mostRecentRecord = {"target": "Features"};
             var datapoints = [];
             data.forEach(function(record){
@@ -1347,9 +1257,7 @@ function getFeaturesTable(body,target){
 }
 function getMetaData(body,target){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     id=body.adhocFilters[0].value
     sceneName=body.adhocFilters[1].value   
@@ -1358,9 +1266,9 @@ function getMetaData(body,target){
         var dbo = db.db();
         var fromTime = ObjectID.createFromTime(new Date(body.range.from).getTime()/1000);
         var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
-        //.limit(1).sort({$natural:-1})
+        
         dbo.collection(collection).find({_id:ObjectID(id),"result.elements.id":sceneName}).toArray(function(err, data){
-            // console.log(data);
+            
             var mostRecentRecord = {"target": "MetaData"};
             var colpoints =[];
             var datapoints = [];
@@ -1391,9 +1299,7 @@ function getMetaData(body,target){
 }
 function getTestData(body,target){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     id=body.adhocFilters[0].value
     sceneName=body.adhocFilters[1].value   
@@ -1401,9 +1307,9 @@ function getTestData(body,target){
         if (err) throw err;
         var dbo = db.db();
         
-        //.limit(1).sort({$natural:-1})
+        
         dbo.collection(collection).find({_id:ObjectID(id)}).toArray(function(err, data){
-            // console.log(data);
+            
             var mostRecentRecord = {"target": "TestData"};
             var colpoints =[];
             var datapoints = [];
@@ -1497,19 +1403,19 @@ function getScenariosRunTable(body,target){
         var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
         
         dbo.collection(collection).find({_id:ObjectID(id),"result.uri":featureName}).toArray(function(err, data){
-        //dbo.collection(collection).find({"result.uri":featureName}).toArray(function(err, data){
+        
 
                 var scenarois = {"target": "ScenariosRun"};
                 var datapoints = [];
                 
                 data.forEach(record => {
-                    // console.log(record);
+                    
                     record.result.forEach(function(feature){
-                        // {"target":"ScenariosRun","datapoints":[["Xyz scen name","Pass",30],["efg feature name","Fail",30]]}
+                        
                         if(feature.uri===featureName){
                        		feature.elements.forEach(function(element){
                                 var sceneData = [];
-                                // console.log(element);
+                                
                                 var duration = 0;
                                 var scene_status = "passed";
 
@@ -1552,9 +1458,9 @@ function getScenariosRunTable(body,target){
 }
 function getStepsRunTable(body,target){
 
-    // {"target":"StepsRun","datapoints":[["Xyz step name","Pass",30],["efg step name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
-    //sceneName="as-a-user-once-i-add-items-to-cart-i-should-be-able-to-continue-shopping;authorized-user-should-be-able-to-continue-shopping;;2";
+    
     id=body.adhocFilters[0].value;
     sceneName=body.adhocFilters[1].value;
     
@@ -1565,15 +1471,15 @@ function getStepsRunTable(body,target){
         var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
         
         dbo.collection(collection).find({_id:ObjectID(id),"result.elements.id":sceneName}).toArray(function(err, data){
-            //console.log(data);
+            
             var steps = {"target": "StepsRun"};
             var datapoints = [];
             data[0].result.forEach(function(feature) {
-                // console.log(feature.name);
+                
                 feature.elements.forEach(function(element){
-                     //console.log(element.name);
+                     
                     if(element.id === sceneName){
-                         //console.log(sceneName);
+                         
                         var before_steps = [];
                             var after_steps = [];
                             before_steps.push("Browser and Env Setup");
@@ -1601,8 +1507,39 @@ function getStepsRunTable(body,target){
                             eachStep.push(step.result.duration/1000000000.0);
                             eachStep.push((step.embeddings!=null)?step.embeddings[0].data:null);
                             eachStep.push((step.embeddings!=null)?step.embeddings[0].mime_type:null);
-                            eachStep.push((step.result.error_message!=null)?step.result.error_message:null);
-                            eachStep.push((step.output!=null)?step.output:null);
+                            if(step.result.error_message!=null && step.result.error_message.indexOf("ERROR [1]")!=-1){
+                            	
+                            	var eIndex=step.result.error_message.indexOf("ERROR [1] Iteration 1 failed") 		
+                            	eachStep.push(step.result.error_message.substring(eIndex,eIndex+150));
+                            	
+                            }
+                            else{
+                            	eachStep.push((step.result.error_message!=null)?step.result.error_message:null);
+                            	
+                            }
+                            if(step.output!=null){
+                            	var infoSteps=[];
+                            	
+                            	var ebssteps=step.output[0].split(/\r\n/)
+                            	
+                            	ebssteps.forEach(function(info){
+                            		console.log(info)
+                            		console.log(info.includes("INFO  [1]"))
+                            		if(info.includes("INFO  [1]"))
+                            		{
+                            			
+                            			infoSteps.push(info);
+                            		}
+                            		
+                            	})
+                            	console.log(infoSteps)
+                            	eachStep.push(infoSteps.join("\r\n"));
+                            }
+                            else{
+                            	
+                            	eachStep.push((step.output!=null)?step.output:null);
+                            }
+                            
                             datapoints.push(eachStep);
                         });
                         after_steps.push("Clean up");
@@ -1642,7 +1579,7 @@ function getAPITestSuiteHistory(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`labels.value`;
           foperator=(filter.operator=='!='?'$not':'$regex');
           var obj={};
@@ -1652,7 +1589,7 @@ function getAPITestSuiteHistory(body,target){
           filters.push(obj);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -1735,13 +1672,9 @@ function getAPITestSuiteHistory(body,target){
             fail_datapoints.push(failCount,Math.floor(new Date(Date.now())));
             pass['datapoints'] = [pass_datapoints];
             fail['datapoints'] = [fail_datapoints];
-            // pass['datapoints'] = [];
-            // fail['datapoints'] = [];
-            // console.log("records count: "+c);
+            
             featuresData.push(pass);
             featuresData.push(fail);
-            
-            // return featuresData;
             
             if(target=="APIPassSuiteHistory"){
               resolve(featuresData[0]);
@@ -1763,7 +1696,7 @@ function getAPITestSuiteHistoryTable(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`labels.value`;
           foperator=(filter.operator=='!='?'$not':'$regex');
           var obj={};
@@ -1773,7 +1706,6 @@ function getAPITestSuiteHistoryTable(body,target){
           filters.push(obj);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
           fkey=`status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -1813,7 +1745,7 @@ function getAPITestSuiteHistoryTable(body,target){
         }
         dbo.collection(api_collection).find(filter).sort({$natural:-1}).limit(limit).toArray(function(err, data){
             if (err) throw err;
-            // result = data;
+            
             var c = 0;
             
             var pass_datapoints = [];
@@ -1886,7 +1818,6 @@ function getAPITestCaseHistory(body,target){
      body.adhocFilters.forEach(function(filter){
         
         if(filter.key=="Tags"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
           fkey=`labels.value`;
           foperator=(filter.operator=='!='?'$not':'$regex');
           var obj={};
@@ -1896,7 +1827,7 @@ function getAPITestCaseHistory(body,target){
           filters.push(obj);
         }
         else if(filter.key=="Status"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`status`;
           foperator=(filter.operator=='!='?'$ne':'$eq');
           var obj={};
@@ -1906,7 +1837,7 @@ function getAPITestCaseHistory(body,target){
           filters.push(obj);
         }
         if(filter.key=="TestName"){
-          //tags.push('tag.name'+(filter.operator=='!='?'!=':'==')+'"'+filter.value+'"');
+          
           fkey=`name`;
           foperator=(filter.operator=='!='?'$not':'$regex');
           var obj={};
@@ -2054,9 +1985,9 @@ function getAPITestSteps(body,target){
 }
 function getStepDetailsTable(body,target){
 
-    // {"target":"StepsRun","datapoints":[["Xyz step name","Pass",30],["efg step name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
-    //sceneName="as-a-user-once-i-add-items-to-cart-i-should-be-able-to-continue-shopping;authorized-user-should-be-able-to-continue-shopping;;2";
+    
     id=body.adhocFilters[0].value
     sceneName=body.adhocFilters[1].value
     
@@ -2067,7 +1998,7 @@ function getStepDetailsTable(body,target){
         var toTime = ObjectID.createFromTime(new Date(body.range.to).getTime()/1000);
         
         dbo.collection(collection).find({_id:ObjectID(id),"result.elements.id":sceneName}).toArray(function(err, data){
-            //console.log(data);
+            
             var steps = {"target": "StepsDetails"};
             var datapoints = [];
             data[0].result.forEach(function(feature) {
@@ -2082,7 +2013,7 @@ function getStepDetailsTable(body,target){
                                 if(detail.embeddings!=null){
                                   detail.embeddings.forEach(function(embeds){
                                     after_steps.push([embeds.mime_type,embeds.data]);
-                                    //after_steps.push(embeds.data);
+                                    
                                     
                                   })
                                 }
@@ -2097,7 +2028,7 @@ function getStepDetailsTable(body,target){
                             })
             
                             datapoints.push(after_steps);
-                            //datapoints.push(steps);
+                            
                         
                     }
                     
@@ -2124,18 +2055,16 @@ app.all('/tag[\-]keys', function(req, res) {
 
 function getFilterTags(){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     
     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
         
-        //.limit(1).sort({$natural:-1})
+        
         dbo.collection(collection).find({}).sort({$natural:-1}).limit(100).toArray(function(err, data){
-            // console.log(data);
+            
             
             var colpoints =[];
             var datapoints = [];
@@ -2166,7 +2095,7 @@ function getFilterTags(){
           rows: datapoints,
           "type":"table"
         };
-        //console.log(table);
+        
             resolve(table);
         });
     });
@@ -2175,18 +2104,15 @@ function getFilterTags(){
 
 function getFilterValues(filterkey){
 
-    // format
-    // {"target":"RecentFeatureRun","datapoints":[["Xyz feature name","Pass",30],
-    // ["efg feature name","Fail",30]]}
+    
     return new Promise(function(resolve, reject){
     
     MongoClient.connect(url, { useNewUrlParser: true }, function(err, db) {
         if (err) throw err;
         var dbo = db.db();
         
-        //.limit(1).sort({$natural:-1})
+        
         dbo.collection(collection).find({}).sort({$natural:-1}).limit(1000).toArray(function(err, data){
-            // console.log(data);
             
             var colpoints =[];
             var datapoints = [];
@@ -2194,8 +2120,7 @@ function getFilterValues(filterkey){
                  
                 if(record.metadata!=null){
                 Object.keys(record.metadata).forEach(function(key){
-                    //console.log(key)
-                    //console.log(filterkey)
+                    
                     if(key==filterkey){
                       datapoints.push({text:(record.metadata[key]==true?'true':(record.metadata[key]==false?'false':record.metadata[key]))});
                     }
@@ -2216,11 +2141,11 @@ function getFilterValues(filterkey){
             
             var table =
         {
-          //columns: colpoints,
+          
           values: datapoints,
           
         };
-        //console.log(table);
+        
             resolve(table);
         });
     });
